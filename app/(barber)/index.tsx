@@ -3,14 +3,15 @@ import { View, Text, FlatList, TouchableOpacity } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAppointmentsByDate, updateAppointmentStatus } from '../../lib/repositories/appointmentRepository'
 import { appointment_status } from '../../types/database'
-import { useAuth } from '../../hooks/useAuth'
 import { format } from 'date-fns'
+import SideMenu from '../../components/ui/SideMenu'
+import MenuButton from '../../components/ui/MenuButton'
 
 export default function BarberDashboard() {
   const queryClient = useQueryClient()
   const today = format(new Date(), 'yyyy-MM-dd')
-
-  const { signOut } = useAuth()
+  const tomorrow = '2026-06-12'
+  console.log(today, 'today') // DEBUG
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['appointments', today],
@@ -25,9 +26,13 @@ export default function BarberDashboard() {
   return (
     <View className="flex-1 bg-slate-50 p-4">
       {/*Logout Button */}
-      <TouchableOpacity onPress={signOut} className="bg-red-500 rounded-lg p-3 items-center mb-4">
-        <Text className="text-blue font-semibold">Cerrar sesión</Text>
-      </TouchableOpacity>
+      <SideMenu />
+      {/* Header */}
+      <View className="flex-row justify-between items-center px-4 pt-12 pb-4 bg-white border-b border-slate-200">
+        <MenuButton />
+        <Text className="text-lg font-bold text-slate-900">Mi Agenda</Text>
+        <View className="w-8" />
+      </View>
 
       <Text className="text-2xl font-bold mb-6 mt-12 text-slate-900">Mi Agenda - Hoy</Text>
       {isLoading ? <Text>Cargando...</Text> : (

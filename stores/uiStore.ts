@@ -1,0 +1,13 @@
+import { create } from 'zustand'
+
+interface UIState {
+    isMenuOpen: boolean
+    openMenu: () => void
+    closeMenu: () => void
+}
+
+export const useUIStore = create<UIState>((set) => ({
+    isMenuOpen: false,
+    openMenu: () => set({ isMenuOpen: true }),
+    closeMenu: () => set({ isMenuOpen: false }),
+}))
