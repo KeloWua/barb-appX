@@ -20,6 +20,10 @@ export const profileSchema = z.object({
     .regex(/^\+?[0-9\s-]{7,15}$/, 'Invalid phone number')
     .nullable()
     .optional(),
-  avatar_url: z.string().url('Invalid URL').nullable().optional()
+  avatar_url: z.string()
+    .url('Invalid URL')
+    .nullable()
+    .optional()
+    .or(z.literal(''))
 })
 export type ProfileFormData = z.infer<typeof profileSchema>
