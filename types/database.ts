@@ -1,5 +1,5 @@
 export type user_role = 'admin' | 'barber' | 'client';
-export type appointment_status = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+export type appointment_status = 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 
 export interface Profile { id: string; full_name: string; email: string | null; phone: string | null; role: user_role; avatar_url: string | null; is_vip: boolean; internal_notes: string | null; created_at: string; }
 export interface Barber { id: string; profile_id: string | null; name: string; photo_url: string | null; color_code: string; is_active: boolean; }
