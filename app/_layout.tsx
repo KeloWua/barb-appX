@@ -16,16 +16,19 @@ function AuthGuard() {
 
     useEffect(() => {
         if (!isInitialized) return
-        const inAuthGroup = segments[0] === '(auth)'
+
+        const currentGroup = segments[0]
+        const inAuthGroup = currentGroup === '(auth)'
 
         if (!isAuthenticated && !inAuthGroup) {
             router.replace('/(auth)/login')
         } else if (isAuthenticated && role) {
+            const expectedGroup = `(${role})`
+
+            // Enforce strict role routing (prevents accessing other roles via web URL)
             /*@ts-ignore-next-line*/
-            if (inAuthGroup || segments.length === 0) {
-                if (role === 'admin') router.replace('/(admin)')
-                else if (role === 'barber') router.replace('/(barber)')
-                else router.replace('/(client)')
+            if (inAuthGroup || segments.length === 0 || currentGroup !== expectedGroup) {
+                router.replace(`/${expectedGroup}`)
             }
         }
     }, [isInitialized, isAuthenticated, role, segments])
