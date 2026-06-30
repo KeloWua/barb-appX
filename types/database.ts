@@ -6,3 +6,4 @@ export interface Barber { id: string; profile_id: string | null; name: string; p
 export interface Service { id: string; name_es: string; name_en: string; duration_minutes: number; price: number; is_active: boolean; }
 export interface BarberSchedule { id: string; barber_id: string; day_of_week: number; start_time: string; end_time: string; is_day_off: boolean; }
 export interface Appointment { id: string; barber_id: string; client_id: string; service_id: string; start_time: string; end_time: string; status: appointment_status; created_by: string | null; notes: string | null; }
+export interface HoldPayload { barber_id: string; client_id: string; service_id: string; start_time: string; end_time: string; }

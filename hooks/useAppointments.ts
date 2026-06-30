@@ -1,7 +1,8 @@
+import { useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns'
-import { getAppointmentsByRange, updateAppointmentStatus } from '../lib/repositories/appointmentRepository'
+import { getAppointmentsByRange, updateAppointmentStatus, holdAppointmentSlot, releaseAppointmentHold } from '../lib/repositories/appointmentRepository'
+import { supabase } from '../lib/supabase' // Needed to listen to WebSockets
 import type { appointment_status } from '../types/database'
 
 type ViewMode = 'day' | 'week' | 'month'
@@ -24,16 +25,76 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
         }
     }, [selectedDate, viewMode])
 
+    // 1. Fetch appointments & filter out expired holds
     const { data: appointments, isLoading } = useQuery({
         queryKey: ['appointments', startDate, endDate, barberId],
-        queryFn: () => getAppointmentsByRange(startDate, endDate, barberId).then(res => res.data || []),
+        queryFn: async () => {
+            const res = await getAppointmentsByRange(startDate, endDate, barberId)
+            const data = res.data || []
+
+            const now = new Date().getTime()
+
+            // Filter logic: Ignore 'holding' appointments that have expired
+            return data.filter(apt => {
+                if (apt.status !== 'holding') return true
+                if (!apt.expires_at) return false
+                return new Date(apt.expires_at).getTime() > now
+            })
+        },
     })
 
+    // 2. Real-Time WebSockets: Updates UI instantly if someone books a slot
+    useEffect(() => {
+        const channel = supabase.channel('appointments_realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'appointments' },
+                () => {
+                    // This forces the hook to re-fetch automatically when DB changes
+                    queryClient.invalidateQueries({ queryKey: ['appointments'] })
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [queryClient])
+
+    // 3. Status change mutation (for Barbers)
     const { mutate: changeStatus, isPending: isChangingStatus } = useMutation({
         mutationFn: ({ id, status }: { id: string; status: appointment_status }) =>
             updateAppointmentStatus(id, status),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
     })
 
-    return { appointments, isLoading, changeStatus, isChangingStatus }
-}
+    // 4. Hold action (for Clients)
+    const holdSlot = async (clientId: string, serviceId: string, startTime: string, endTime: string) => {
+        if (!barberId) throw new Error("barberId is required to hold a slot")
+
+        const res = await holdAppointmentSlot({
+            barber_id: barberId,
+            client_id: clientId,
+            service_id: serviceId,
+            start_time: startTime,
+            end_time: endTime
+        })
+
+        if (res.error) throw res.error
+        return res.data?.id // Returns the ID so we can save it in Zustand
+    }
+
+    // 5. Release action (for Clients changing their mind)
+    const releaseHold = async (holdId: string) => {
+        await releaseAppointmentHold(holdId)
+    }
+
+    return {
+        appointments,
+        isLoading,
+        changeStatus,
+        isChangingStatus,
+        holdSlot,
+        releaseHold
+    }
+} 

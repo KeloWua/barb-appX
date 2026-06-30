@@ -1,6 +1,6 @@
 import { supabase } from "../supabase"
 import type { AppointmentWithRelations } from "../../types/app"
-import type { appointment_status } from "../../types/database"
+import type { appointment_status, HoldPayload  } from "../../types/database"
 
 // pure SQL (for migration): 
 // SELECT a.*, b.name, p.full_name, s.name_es FROM appointments a JOIN barbers b...
@@ -32,8 +32,35 @@ export const getAppointmentsByRange = async (
 
 export const updateAppointmentStatus = async (id: string, status: appointment_status) => {
     const { data, error } = await supabase.from('appointments')
-    .update({ status })
-    .eq('id', id)
-    .select().single()
+        .update({ status })
+        .eq('id', id)
+        .select().single()
+
     return { data, error }
+}
+
+export const holdAppointmentSlot = async (payload: HoldPayload) => {
+    // Expires exactly 2 minutes from now
+    const expiresAt = new Date(new Date().getTime() + 2 * 60000).toISOString()
+    
+    const { data, error } = await supabase
+        .from('appointments')
+        .insert({
+            ...payload,
+            status: 'holding',
+            expires_at: expiresAt
+        })
+        .select()
+        .single()
+
+    return { data, error }
+}
+
+export const releaseAppointmentHold = async (id: string) => {
+    const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id)
+    
+    return { error }
 }

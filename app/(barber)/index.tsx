@@ -9,6 +9,8 @@ import SideMenu from "../../components/ui/SideMenu"
 import MenuButton from "../../components/ui/MenuButton"
 import { TimeGrid } from "../../components/calendar/TimeGrid"
 import { BarberColumn } from "../../components/calendar/BarberColumn"
+import { PX_PER_MINUTE } from "../../lib/calendarUtils"
+import { CalendarGridLines } from "../../components/calendar/CalendarGridLines"
 
 import type { AppointmentWithRelations } from "../../types/app"
 import type { appointment_status } from "../../types/database"
@@ -42,7 +44,7 @@ export default function BarberDashboard() {
   const { appointments, isLoading, changeStatus, isChangingStatus } = useAppointments(selectedDate, viewMode)
   const { data: barbers = [] } = useBarbers()
 
-  // Mavigation helpers
+  // Navigation helpers
   const goBack = () => {
     if (viewMode === 'day') setSelectedDate(d => subDays(d, 1))
     if (viewMode === 'week') setSelectedDate(d => subWeeks(d, 1))
@@ -83,7 +85,7 @@ export default function BarberDashboard() {
       {/* Greeting */}
       <View className='px-4 pt-4 pb-2 z-10'>
         <Text className='text-slate-500 text-sm'>Bienvenido,</Text>
-        <Text className='text-2x1 font-bold text-slate-900'>{profile?.full_name ?? 'Barbero'}</Text>
+        <Text className='text-2xl font-bold text-slate-900'>{profile?.full_name ?? 'Barbero'}</Text>
       </View>
 
       {/* View mode selector */}
@@ -101,6 +103,62 @@ export default function BarberDashboard() {
         ))}
       </View>
 
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="px-4 mb-3"
+        >
+          <TouchableOpacity
+            onPress={() => setSelectedBarberIds([])}
+            className={`mr-2 px-4 py-2 rounded-full ${selectedBarberIds.length === 0
+                ? "bg-slate-900"
+                : "bg-slate-200"
+              }`}
+          >
+            <Text
+              className={
+                selectedBarberIds.length === 0
+                  ? "text-white"
+                  : "text-slate-700"
+              }
+            >
+              Todos
+            </Text>
+          </TouchableOpacity>
+
+          {barbers.map(barber => {
+            const selected = selectedBarberIds.includes(barber.id)
+
+            return (
+              <TouchableOpacity
+                key={barber.id}
+                onPress={() =>
+                  setSelectedBarberIds(ids =>
+                    selected
+                      ? ids.filter(id => id !== barber.id)
+                      : [...ids, barber.id]
+                  )
+                }
+                className={`mr-2 px-4 py-2 rounded-full ${selected
+                    ? "bg-slate-900"
+                    : "bg-slate-200"
+                  }`}
+              >
+                <Text
+                  className={
+                    selected
+                      ? "text-white"
+                      : "text-slate-700"
+                  }
+                >
+                  {barber.name}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      </View>
       {/* Date navigator */}
       <View className='flex-row items-center justify-between px-4 mb-3 z-10'>
         <TouchableOpacity onPress={goBack} className='p-2 bg-white rounded-full shadow-sm'>
@@ -129,11 +187,7 @@ export default function BarberDashboard() {
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex-1'>
               <View className='flex-row relative'>
-                <View className='absolute inset-0 top-[48px] z-0 pointer-events-none'>
-                  {Array.from({ length: 15 }).map((_, i) => (
-                    <View key={i} style={{ top: i * 60 * 1.5, position: 'absolute' }} className='w-full h-[1px] bg-slate-100' />
-                  ))}
-                </View>
+                <CalendarGridLines columnsCount={activeBarbers.length} />
 
                 <View className='flex-row z-10'>
                   {activeBarbers.map(barber => {
@@ -171,7 +225,7 @@ export default function BarberDashboard() {
         onRequestClose={() => setSelectedAppointment(null)}
       >
         <Pressable className='flex-1 justify-end bg-black/50' onPress={() => setSelectedAppointment(null)}>
-          <Pressable className='bg-white p-5 rounded-t-3x1 pb-10' onPress={(e) => e.stopPropagation()}>
+          <Pressable className='bg-white p-5 rounded-t-3xl pb-10' onPress={(e) => e.stopPropagation()}>
             <View className='flex-row justify-between items-start mb-6'>
               <View>
                 <Text className='text-xl font-bold text-slate-900'>
