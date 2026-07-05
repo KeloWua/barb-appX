@@ -1,39 +1,42 @@
-import { create } from "zustand"
+import { create } from 'zustand'
+import { Barber, Service } from '../types/database'
 
 interface BookingState {
-    serviceId: string | null
-    barberId: string | null
-    customerId: string | null
-    customerName: string | null
+    selectedService: Service | null
+    selectedBarber: Barber | null
     selectedDate: string | null
-    holdId: string | null // Tracks current active hold
-    
-    setService: (id: string) => void
-    setBarber: (id: string) => void
-    setCustomer: (id: string, name?: string) => void
+    selectedSlotStart: string | null   
+    selectedSlotEnd: string | null     
+    holdId: string | null
+
+    setService: (s: Service) => void
+    setBarber: (b: Barber) => void
     setDate: (date: string) => void
+    setSlot: (start: string, end: string) => void  
     setHold: (id: string | null) => void
     clearBooking: () => void
 }
 
 export const useBookingStore = create<BookingState>((set) => ({
-    serviceId: null,
-    barberId: null,
-    customerId: null,
-    customerName: null,
+    selectedService: null,
+    selectedBarber: null,
     selectedDate: null,
+    selectedSlotStart: null,
+    selectedSlotEnd: null,
     holdId: null,
 
-    setService: (id) => set({ serviceId: id }),
-    setBarber: (id) => set({ barberId: id }),
-    setCustomer: (id, name) => set({ customerId: id, customerName: name ?? null }),
+    setService: (s) => set({ selectedService: s }),
+    setBarber: (b) => set({ selectedBarber: b }),
     setDate: (date) => set({ selectedDate: date }),
+    setSlot: (start, end) => set({ selectedSlotStart: start, selectedSlotEnd: end }),
     setHold: (id) => set({ holdId: id }),
-    clearBooking: () => set({ 
-        serviceId: null,
-        barberId: null,
-        customerId: null,
-        customerName: null,
-        selectedDate: null,
-        holdId: null})
+    clearBooking: () =>
+        set({
+            selectedService: null,
+            selectedBarber: null,
+            selectedDate: null,
+            selectedSlotStart: null,
+            selectedSlotEnd: null,
+            holdId: null,
+        }),
 }))

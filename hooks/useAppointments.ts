@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns'
 import { getAppointmentsByRange, updateAppointmentStatus, holdAppointmentSlot, releaseAppointmentHold } from '../lib/repositories/appointmentRepository'
@@ -9,6 +9,9 @@ type ViewMode = 'day' | 'week' | 'month'
 
 export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId?: string) => {
     const queryClient = useQueryClient()
+
+    // Unique ID per hook instance, stable while component is mounted (avoids channel overlapping)
+    const channelId = useRef(`appointments_realtime_${Math.random().toString(36).slice(2)}`)
 
     const { startDate, endDate } = useMemo(() => {
         if (viewMode === 'day') return {
@@ -36,6 +39,10 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
 
             // Filter logic: Ignore 'holding' appointments that have expired
             return data.filter(apt => {
+                // Filter logic: 'cancelled' appointments won't be shown
+                if (apt.status === 'cancelled') return false
+                // TODO: Create separate cancelled appointments query to show on a diff table for analysis purpose.
+
                 if (apt.status !== 'holding') return true
                 if (!apt.expires_at) return false
                 return new Date(apt.expires_at).getTime() > now
@@ -45,7 +52,7 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
 
     // 2. Real-Time WebSockets: Updates UI instantly if someone books a slot
     useEffect(() => {
-        const channel = supabase.channel('appointments_realtime')
+        const channel = supabase.channel(channelId.current)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'appointments' },
