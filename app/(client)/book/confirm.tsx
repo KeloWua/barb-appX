@@ -50,7 +50,9 @@ export default function ConfirmScreen() {
         if (!holdId || isExpired) return
         setIsConfirming(true)
         try {
-            await updateAppointmentStatus(holdId, 'confirmed')
+            const { error } = await updateAppointmentStatus(holdId, 'confirmed')
+            if (error) throw error
+            router.replace('/(client)/book/success')
         } catch {
             Alert.alert('Error', 'No se pudo confirmar la cita. Inténtalo de nuevo.')
         } finally {

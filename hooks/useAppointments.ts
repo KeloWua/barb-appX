@@ -87,13 +87,20 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
             end_time: endTime
         })
 
-        if (res.error) throw res.error
+        if (res.error) {
+            // 23P01 = exclusion_violation -> someone just booked that slot right before you
+            if ((res.error as any).code === '23P01') {
+                throw new Error('SLOT_TAKEN')
+            }
+            throw res.error
+        }
         return res.data?.id // Returns the ID so we can save it in Zustand
     }
 
     // 5. Release action (for Clients changing their mind)
     const releaseHold = async (holdId: string) => {
-        await releaseAppointmentHold(holdId)
+        const { error } = await releaseAppointmentHold(holdId)
+        if (error) throw error
     }
 
     return {

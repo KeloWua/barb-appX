@@ -1,23 +1,28 @@
-import { useEffect, useMemo } from 'react'
+import { act, useEffect, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
-import { format, addDays, setHours, setMinutes, isBefore, isEqual } from 'date-fns'
+import { format, addDays, setHours, setMinutes, isBefore, isEqual, setMilliseconds, setSeconds } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 import { useAuth } from '../../../hooks/useAuth'
 import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
+import { useBookedSlots } from '../../../hooks/useBookedSlots'
 import { START_HOUR, END_HOUR } from '../../../lib/calendarUtils'
 import type { Appointment } from '../../../types/database'
 import { holdAppointmentSlot } from '../../../lib/repositories/appointmentRepository'
 
 // Helper to check if a slot overlaps with any booked appointment
-const isSlotAvailable = (slotStart: Date, slotEnd: Date, booked: Appointment[]) => {
-    return !booked.some((apt) => {
-        const aptStart = new Date(apt.start_time)
-        const aptEnd = new Date(apt.end_time)
+const isSlotAvailable = (
+    slotStart: Date,
+    slotEnd: Date,
+    booked: { start_time: string; end_time: string }[]
+) => {
+    return !booked.some((b) => {
+        const bStart = new Date(b.start_time)
+        const bEnd = new Date(b.end_time)
         // A slot overlaps if it starts before the appointment ends AND ends after the appointment starts
-        return slotStart < aptEnd && slotEnd > aptStart
+        return slotStart < bEnd && slotEnd > bStart
     })
 }
 
@@ -44,12 +49,19 @@ export default function SelectDateTimeScreen() {
         selectedBarber?.id
     )
 
+    // 1b. Hours occupied by ANY client (RLS-safe, without exposing identity)
+    const { data: bookedSlots, isLoading: isLoadingBooked } = useBookedSlots(
+        selectedBarber?.id,
+        format(activeDate, 'yyyy-MM-dd'),
+        format(activeDate, 'yyyy-MM-dd')
+    )
+
     // 2. Generate Next 7 Days for the top selector
     const nextDays = useMemo(() => Array.from({ length: 7 }).map((_, i) => addDays(new Date(), i)), [])
 
     // 3. Generate Available Slots mathematically
     const { morningSlots, afternoonSlots } = useMemo(() => {
-        if (!selectedService || !appointments) return { morningSlots: [], afternoonSlots: [] }
+        if (!selectedService || !bookedSlots) return { morningSlots: [], afternoonSlots: [] }
 
         const morning: Date[] = []
         const afternoon: Date[] = []
@@ -57,7 +69,13 @@ export default function SelectDateTimeScreen() {
         // We assume slots are generated every 30 minutes, or you can use service.duration_minutes
         const slotInterval = 30
 
-        let currentSlot = setMinutes(setHours(activeDate, START_HOUR), 0)
+        let currentSlot = setMilliseconds(
+            setSeconds(
+                setMinutes(setHours(activeDate, START_HOUR), 0),
+                0
+            ),
+            0
+        )
         const endOfDay = setMinutes(setHours(activeDate, END_HOUR), 0)
 
         while (isBefore(currentSlot, endOfDay)) {
@@ -65,16 +83,15 @@ export default function SelectDateTimeScreen() {
             // Ensure the slot hasn't already passed (if booking for today)
             const isFuture = currentSlot > now
 
-            if (isFuture && isSlotAvailable(currentSlot, slotEnd, appointments)) {
+            if (isFuture && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
                 if (currentSlot.getHours() < 16) morning.push(currentSlot)
                 else afternoon.push(currentSlot)
             }
             // Move to next 30-min block
             currentSlot = new Date(currentSlot.getTime() + slotInterval * 60000)
         }
-
         return { morningSlots: morning, afternoonSlots: afternoon }
-    }, [activeDate, appointments, selectedService])
+    }, [activeDate, bookedSlots, selectedService])
 
     // 4. Handle Slot Selection (The Hold mechanism)
     const handleSelectSlot = async (slotStart: Date) => {
@@ -97,8 +114,12 @@ export default function SelectDateTimeScreen() {
             setHold(newHoldId)
             setSlot(slotStart.toISOString(), slotEnd.toISOString())
             router.push('/book/confirm')
-        } catch {
-            Alert.alert('Aviso', 'Este hueco acaba de ser reservado por otra persona. Elige otro o actualiza de nuevo.')
+        } catch (error: any) {
+            if (error.message === 'SLOT_TAKEN') {
+                Alert.alert('Hueco ocupado', 'Alguien acaba de reservar esta hora. Elige otra.')
+            } else {
+                Alert.alert('Error', 'No se pudo completar la reserva. Inténtalo de nuevo.')
+            }
         }
     }
 
@@ -155,8 +176,8 @@ export default function SelectDateTimeScreen() {
                                 key={i}
                                 onPress={() => setDate(date.toISOString())}
                                 className={`mr-3 items-center justify-center py-3 px-5 rounded-2xl border ${isSelected
-                                        ? 'bg-slate-900 border-slate-900'
-                                        : 'bg-white border-slate-200'
+                                    ? 'bg-slate-900 border-slate-900'
+                                    : 'bg-white border-slate-200'
                                     }`}
                             >
                                 <Text
@@ -180,7 +201,7 @@ export default function SelectDateTimeScreen() {
 
             {/* AVAILABLE TIME SLOTS */}
             <ScrollView className='flex-1 px-5 pt-6'>
-                {isLoading ? (
+                {(isLoading || isLoadingBooked) ? (
 
                     /* Loading state */
                     <ActivityIndicator size='large' color='#0f172a' className='mt-10' />
