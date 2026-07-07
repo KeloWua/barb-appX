@@ -37,7 +37,7 @@ yarn-error.*
 .env
 
 # history
-.histoy/
+.history/
 .vscode/
 
 # typescript

@@ -43,7 +43,7 @@ export default function SuccessScreen() {
     }
 
     const goToAppointments = () => {
-        router.replace('/../appointments')
+        router.replace('/appointments')
     }
 
     const goHome = () => {

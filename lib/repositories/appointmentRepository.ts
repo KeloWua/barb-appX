@@ -69,6 +69,33 @@ export const getMyAppointments = async () => {
     }
 }
 
+export const getAppointmentById = async (id: string) => {
+    const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+            *,
+            barber:barbers(
+                id,
+                name,
+                photo_url,
+                color_code
+            ),
+            service:services(
+                id,
+                name_es,
+                duration_minutes,
+                price
+            )
+        `)
+        .eq('id', id)
+        .single()
+
+    return {
+        data: data as AppointmentWithRelations,
+        error,
+    }
+}
+
 export const updateAppointmentStatus = async (id: string, status: appointment_status) => {
     const { data, error } = await supabase.from('appointments')
         .update({ status })
