@@ -8,9 +8,13 @@ export default function SideMenu() {
     const { role, profile, signOut } = useAuth()
     const router = useRouter()
 
-    const handleNavigate = (route: string) => {
+    const handleNavigate = (route: string, options?: { reset?: boolean }) => {
         closeMenu()
-        router.push(route)
+        if (options?.reset) {
+            router.replace(route)
+        } else {
+            router.push(route)
+        }
     }
 
     const handleSignOut = async () => {
@@ -40,7 +44,7 @@ export default function SideMenu() {
                     {/* Options */}
                     <TouchableOpacity
                         className='flex-row items-center py-4 border-b border-slate-100'
-                        onPress={() => handleNavigate(homeRoute)}
+                        onPress={() => handleNavigate(homeRoute, { reset: true })}
                     >
                         <Text className='text-base text-slate-700 font-medium'>🏠 Inicio</Text>
                     </TouchableOpacity>

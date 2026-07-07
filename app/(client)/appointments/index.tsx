@@ -59,8 +59,7 @@ export default function MyAppointmentsScreen() {
                 paddingBottom: 40,
             }}
         >
-            {/* DEBUG */}
-            <HomeButton />
+            
             <Text className="text-3xl font-bold text-slate-900 mb-6">
                 Mis citas
             </Text>

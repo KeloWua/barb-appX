@@ -5,8 +5,7 @@ import { profileSchema, ProfileFormData } from '../../types/app'
 import { useProfile } from '../../hooks/useProfile'
 import ProfileHeader from './ProfileHeader'
 import ProfileBaseFields from './ProfileBaseFields'
-import SideMenu from '../ui/SideMenu'
-import MenuButton from '../ui/MenuButton'
+
 
 
 interface ProfileScreenProps {
@@ -35,11 +34,9 @@ export default function ProfileSCreen({ title = 'My Profile', extraFields }: Pro
 
     return (
         <View className='flex-1 bg-slate-50'>
-            <SideMenu />
 
             {/* Header */}
-            <View className='flex-row justify-between items-center px-4 pt-12 pb-4 bg-white border-b border-slate-200'>
-                <MenuButton />
+            <View className='flex-row justify-between items-center px-4 pt-2 pb-4 border-b border-slate-200'>
                 <Text className='text-lg font-bold text-slate-900'>{title}</Text>
                 <View className='w-8' />
             </View>
