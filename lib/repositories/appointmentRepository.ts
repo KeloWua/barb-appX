@@ -105,6 +105,18 @@ export const updateAppointmentStatus = async (id: string, status: appointment_st
     return { data, error }
 }
 
+export const cancelAppointment = async (id: string) => {
+    const { data, error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .eq('status', 'confirmed') // customer can only cancel if its confirmed
+        .select()
+        .single()
+
+    return { data, error }
+}
+
 export const holdAppointmentSlot = async (payload: HoldPayload) => {
     // Expires exactly 2 minutes from now
     const expiresAt = new Date(new Date().getTime() + 2 * 60000).toISOString()
