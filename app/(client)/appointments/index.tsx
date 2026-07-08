@@ -2,7 +2,6 @@ import { View, Text, ActivityIndicator, ScrollView } from 'react-native'
 import { useMemo } from 'react'
 import { useMyAppointments } from '../../../hooks/useMyAppointments'
 import AppointmentCard from '../../../components/appointments/AppointmentCard'
-import HomeButton from '../../../components/buttons/HomeButton'
 
 export default function MyAppointmentsScreen() {
     const { data: appointments = [], isLoading } = useMyAppointments()

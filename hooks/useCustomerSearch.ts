@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
@@ -14,35 +14,27 @@ export function useCustomerSearch() {
                 .from('profiles')
                 .select('id, full_name, phone')
                 .eq('role', 'client')
-                .or(`full_name.ilike.%#${search}%,phone.ilike%${search}%`)
+                .or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`)
                 .limit(10)
-            if (error) throw error
+            if (error) throw new Error(error.message)
             return data
         },
         enabled: search.trim().length >= 2,
     })
 
-    // Create 'walk-in' customer quickly with just name + phone
-    const createCustomer = useMutation({
-        mutationFn: async ({ fullName, phone }: { fullName: string; phone: string }) => {
-            const { data, error } = await supabase
-                .from('profiles')
-                .insert({ full_name: fullName, phone })
-                .select('id, full_name, phone')
-                .single()
+    const createWalkinClient = useMutation({
+        mutationFn: async ({ full_name, phone }: { full_name: string; phone?: string }) => {
+            const { data, error } = await supabase.functions.invoke('create-walkin-client', {
+                body: { full_name, phone },
+            })
             if (error) throw error
-            return data
+            if (data?.error) throw new Error(data.error)
+            return data.data
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['customer-search'] })
         },
     })
 
-    return {
-        search,
-        setSearch: useCallback((v: string) => setSearch(v), []),
-        results,
-        isLoading,
-        createCustomer,
-    }
+    return { search, setSearch, results, isLoading, createWalkinClient }
 }

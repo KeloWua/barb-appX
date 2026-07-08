@@ -74,4 +74,3 @@ npm install nativewind@^4.0.0 tailwindcss@^3.4.1 react-native-css-interop
 ### Un apunte final sobre SDK 56
 Con este cambio, tu archivo `app.json` activará automáticamente la nueva arquitectura de React Native. Cuando ejecutes la app por primera vez con `npx expo start`, notarás que compila más rápido. Además, los archivos de configuración (`babel.config.js`, `metro.config.js`, `tailwind.config.js`) que te di en el primer mensaje son **exactamente los mismos** que necesitas para SDK 56. 
 
-Guarda esta tabla de dependencias junto a tus planos del proyecto. ¡Tienes entre manos el stack más moderno y potente que se puede montar hoy en día para React Native!

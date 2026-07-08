@@ -118,8 +118,8 @@ export const cancelAppointment = async (id: string) => {
 }
 
 export const holdAppointmentSlot = async (payload: HoldPayload) => {
-    // Expires exactly 2 minutes from now
-    const expiresAt = new Date(new Date().getTime() + 2 * 60000).toISOString()
+    // Expires exactly 1 minutes from now
+    const expiresAt = new Date(new Date().getTime() + 1 * 60000).toISOString()
 
     const { data, error } = await supabase
         .from('appointments')
@@ -141,4 +141,59 @@ export const releaseAppointmentHold = async (id: string) => {
         .eq('id', id)
 
     return { error }
+}
+
+// Hold for barber selecting customers or walk-ins
+export const createProvisionalHold = async (payload: {
+    barber_id: string
+    start_time: string
+    end_time: string
+    created_by: string
+}) => {
+    // Expires exactly 2 minutes from now ( barber needs more time to take customers details )
+    const expiresAt = new Date(new Date().getTime() + 2 * 60000).toISOString()
+
+    const { data, error } = await supabase
+        .from('appointments')
+        .insert({
+            barber_id: payload.barber_id,
+            start_time: payload.start_time,
+            end_time: payload.end_time,
+            created_by: payload.created_by,
+            status: 'holding',
+            client_id: null,
+            service_id: null,
+            expires_at: expiresAt,
+        })
+        .select()
+        .single()
+
+    return { data, error }
+}
+
+export const finalizeManualAppointment = async (
+    id: string,
+    payload: {
+        client_id: string
+        service_id: string
+        start_time: string
+        end_time: string
+        notes?: string | null
+    }
+) => {
+    const { data, error } = await supabase
+        .from('appointments')
+        .update({
+            client_id: payload.client_id,
+            service_id: payload.service_id,
+            start_time: payload.start_time,
+            end_time: payload.end_time,
+            notes: payload.notes ?? null,
+            status: 'confirmed',
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+    return { data, error }
 }

@@ -1,15 +1,28 @@
-import { View, Text } from 'react-native';
-import { AppointmentBlock } from './AppointmentBlock';
-import { COLUMN_WIDTH, getDayTotalHeight } from '../../lib/calendarUtils';
+import { View, Text, TouchableOpacity } from 'react-native'
+import { AppointmentBlock } from './AppointmentBlock'
+import { COLUMN_WIDTH, getDayTotalHeight, generateDaySlots, calculateTop, PX_PER_MINUTE } from '../../lib/calendarUtils'
 
 interface Props {
-    barberName: string;
-    appointments: any[];
-    onPressAppointment: (appointment: any) => void; // NUEVO
+    barberName: string
+    appointments: any[]
+    date: Date
+    onPressAppointment: (appointment: any) => void
+    onPressEmptySlot: (slotStart: Date) => void
 }
 
-export function BarberColumn({ barberName, appointments, onPressAppointment }: Props) {
-    const height = getDayTotalHeight();
+export function BarberColumn({ barberName, appointments, date, onPressAppointment, onPressEmptySlot }: Props) {
+    const height = getDayTotalHeight()
+    const slots = generateDaySlots(date)
+    const slotHeight = 30 * PX_PER_MINUTE
+
+    const isSlotOccupied = (slotStart: Date) => {
+        const slotEnd = new Date(slotStart.getTime() + 30 * 60000)
+        return appointments.some((apt) => {
+            const aptStart = new Date(apt.start_time)
+            const aptEnd = new Date(apt.end_time)
+            return slotStart < aptEnd && slotEnd > aptStart
+        })
+    }
 
     return (
         <View style={{ width: COLUMN_WIDTH }} className="border-r border-slate-200">
@@ -18,14 +31,27 @@ export function BarberColumn({ barberName, appointments, onPressAppointment }: P
             </View>
 
             <View style={{ height }} className="relative bg-transparent">
+                {/* Empty clickable slots - they render FIRST */}
+                {slots.map((slot, i) => {
+                    if (isSlotOccupied(slot)) return null
+                    return (
+                        <TouchableOpacity
+                            key={i}
+                            onPress={() => onPressEmptySlot(slot)}
+                            style={{ top: calculateTop(slot.toISOString()), height: slotHeight }}
+                            className="absolute left-1 right-1 rounded-md active:bg-slate-200"
+                        />
+                    )
+                })}
+
                 {appointments.map((apt) => (
                     <AppointmentBlock
                         key={apt.id}
                         appointment={apt}
-                        onPress={() => onPressAppointment(apt)} // PASAMOS EL EVENTO
+                        onPress={() => onPressAppointment(apt)}
                     />
                 ))}
             </View>
         </View>
-    );
+    )
 }

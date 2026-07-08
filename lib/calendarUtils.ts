@@ -1,4 +1,5 @@
-import { differenceInMinutes, getHours, getMinutes } from 'date-fns'
+import { setHours, setMinutes, setSeconds, setMilliseconds, addMinutes, isBefore, differenceInMinutes, getHours, getMinutes  } from 'date-fns'
+
 
 export const START_HOUR = 9 // 9:00
 export const END_HOUR = 21 // 21:00
@@ -28,4 +29,16 @@ export const calculateHeight = (startTime: string, endTime: string): number => {
     const durationMinutes = differenceInMinutes(end, start)
 
     return durationMinutes * PX_PER_MINUTE
+}
+
+export const generateDaySlots = (date: Date): Date[] => {
+    const slots: Date[] = []
+    let current = setMilliseconds(setSeconds(setMinutes(setHours(date, START_HOUR), 0), 0), 0)
+    const end = setMilliseconds(setSeconds(setMinutes(setHours(date, END_HOUR), 0), 0), 0)
+
+    while (isBefore(current, end)) {
+        slots.push(current)
+        current = addMinutes(current, 30)
+    }
+    return slots
 }

@@ -1,19 +1,21 @@
-import { useState } from "react"
-import { View, Text, Modal, TouchableOpacity, Pressable, ScrollView } from "react-native"
-import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from "date-fns"
-import { es } from "date-fns/locale"
-import { useAuth } from "../../hooks/useAuth"
-import { useAppointments } from "../../hooks/useAppointments"
-import { useBarbers } from "../../hooks/useBarbers"
-import SideMenu from "../../components/ui/SideMenu"
-import MenuButton from "../../components/ui/MenuButton"
-import { TimeGrid } from "../../components/calendar/TimeGrid"
-import { BarberColumn } from "../../components/calendar/BarberColumn"
-import { PX_PER_MINUTE } from "../../lib/calendarUtils"
-import { CalendarGridLines } from "../../components/calendar/CalendarGridLines"
+import { useMemo, useState } from 'react'
+import { View, Text, Modal, TouchableOpacity, Pressable, ScrollView, Alert, Platform } from 'react-native'
+import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, isSameDay, startOfWeek, endOfWeek } from "date-fns"
+import { es } from 'date-fns/locale'
+import { useAuth } from '../../hooks/useAuth'
+import { useAppointments } from '../../hooks/useAppointments'
+import { useBarbers } from '../../hooks/useBarbers'
+import SideMenu from '../../components/ui/SideMenu'
+import MenuButton from '../../components/ui/MenuButton'
+import { TimeGrid } from '../../components/calendar/TimeGrid'
+import { BarberColumn } from '../../components/calendar/BarberColumn'
+import { CalendarGridLines } from '../../components/calendar/CalendarGridLines'
+import { useQueryClient } from '@tanstack/react-query'
+import { createProvisionalHold } from '../../lib/repositories/appointmentRepository'
+import { CreateAppointmentModal } from '../../components/calendar/CreateAppointmentModal'
 
-import type { AppointmentWithRelations } from "../../types/app"
-import type { appointment_status } from "../../types/database"
+import type { AppointmentWithRelations } from '../../types/app'
+import type { appointment_status } from '../../types/database'
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -39,10 +41,44 @@ export default function BarberDashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null)
   const [selectedBarberIds, setSelectedBarberIds] = useState<string[]>([])
+  const [manualHold, setManualHold] = useState<{ id: string; slotStart: Date } | null>(null)
+  const queryClient = useQueryClient()
 
   const { profile } = useAuth()
   const { appointments, isLoading, changeStatus, isChangingStatus } = useAppointments(selectedDate, viewMode)
   const { data: barbers = [] } = useBarbers()
+
+  const weekDays = useMemo(() => {
+    const monday = startOfWeek(selectedDate, { weekStartsOn: 1 })
+    return Array.from({ length: 7 }).map((_, i) => addDays(monday, i))
+  }, [selectedDate])
+
+  const dayAppointments = viewMode === 'week'
+    ? (appointments || []).filter(a => isSameDay(new Date(a.start_time), selectedDate))
+    : (appointments || [])
+
+
+  const handleEmptySlotPress = async (barberId: string, slotStart: Date) => {
+    if (!profile?.id) return
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60000)
+
+    const { data, error } = await createProvisionalHold({
+      barber_id: barberId,
+      start_time: slotStart.toISOString(),
+      end_time: slotEnd.toISOString(),
+      created_by: profile.id,
+    })
+
+    if (error || !data) {
+      console.log(error)
+      const msg = (error as any)?.code === '23P01' ? 'Ese hueco ya está ocupado.' : 'No se pudo crear la cita.'
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
+      return
+    }
+
+    setManualHold({ id: data.id, slotStart })
+  }
+
 
   // Navigation helpers
   const goBack = () => {
@@ -60,9 +96,9 @@ export default function BarberDashboard() {
   const dateLabel = () => {
     if (viewMode === 'day') return format(selectedDate, "EEEE d 'de' MMMM", { locale: es })
     if (viewMode === 'week') {
-      const start = format(selectedDate, 'd MMM', { locale: es })
-      const end = format(addDays(selectedDate, 6), 'd MMM', { locale: es })
-      return `${start} — ${end}`
+      const monday = startOfWeek(selectedDate, { weekStartsOn: 1 })
+      const sunday = endOfWeek(selectedDate, { weekStartsOn: 1 })
+      return `${format(monday, 'd MMM', { locale: es })} — ${format(sunday, 'd MMM', { locale: es })}`
     }
     return format(selectedDate, 'MMMM yyyy', { locale: es })
   }
@@ -112,8 +148,8 @@ export default function BarberDashboard() {
           <TouchableOpacity
             onPress={() => setSelectedBarberIds([])}
             className={`mr-2 px-4 py-2 rounded-full ${selectedBarberIds.length === 0
-                ? "bg-slate-900"
-                : "bg-slate-200"
+              ? "bg-slate-900"
+              : "bg-slate-200"
               }`}
           >
             <Text
@@ -141,8 +177,8 @@ export default function BarberDashboard() {
                   )
                 }
                 className={`mr-2 px-4 py-2 rounded-full ${selected
-                    ? "bg-slate-900"
-                    : "bg-slate-200"
+                  ? "bg-slate-900"
+                  : "bg-slate-200"
                   }`}
               >
                 <Text
@@ -172,48 +208,69 @@ export default function BarberDashboard() {
         </TouchableOpacity>
       </View>
 
+      {/* Week Navigator */}
+      {viewMode === 'week' && (
+        <View className="flex-row justify-between px-4 mb-2">
+          {weekDays.map((day, i) => {
+            const isSelected = isSameDay(day, selectedDate)
+            return (
+              <TouchableOpacity
+                key={i}
+                onPress={() => setSelectedDate(day)}
+                className={`flex-1 flex-col items-center justify-center rounded-full border ${isSelected ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
+                  }`}
+                style={{ height: 44, marginHorizontal: 3 }}
+              >
+                <Text className={`text-[9px] font-bold uppercase leading-tight ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                  {format(day, 'EEE', { locale: es })}
+                </Text>
+                <Text className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                  {format(day, 'd')}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+
       {/* Calendar Body */}
       {isLoading ? (
         <View className='flex-1 items-center justify-center'>
           <Text className='text-slate-400'>Cargando agenda...</Text>
         </View>
 
-      ) : viewMode === 'day' ? (
+      ) : (viewMode === 'day' || viewMode === 'week') ? (
 
         <ScrollView className='flex-1 bg-white' contentContainerStyle={{ paddingBottom: 40 }}>
           <View className='flex-row'>
-
             <TimeGrid />
-
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex-1'>
               <View className='flex-row relative'>
                 <CalendarGridLines columnsCount={activeBarbers.length} />
-
                 <View className='flex-row z-10'>
                   {activeBarbers.map(barber => {
-                    const barberAppointments = (appointments || []).filter(a => a.barber_id === barber.id)
+                    const barberAppointments = dayAppointments.filter(a => a.barber_id === barber.id)
                     return (
                       <BarberColumn
                         key={barber.id}
                         barberName={barber.name}
                         appointments={barberAppointments}
+                        date={selectedDate}
                         onPressAppointment={(apt) => setSelectedAppointment(apt as AppointmentWithRelations)}
+                        onPressEmptySlot={(slot) => handleEmptySlotPress(barber.id, slot)}
                       />
                     )
                   })}
                 </View>
-
               </View>
             </ScrollView>
-
           </View>
         </ScrollView>
 
       ) : (
         <View className='flex-1 items-center justify-center bg-white'>
           <Text className='text-4xl mb-3'>📅</Text>
-          {/* PENDING: Implement view on 'week', 'month'... */}
-          <Text className='text-slate-500 font-medium'>Vista multi-columna solo disponible en 'hoy'</Text>
+          <Text className='text-slate-500 font-medium'>Vista de mes pr\u00f3ximamente</Text>
         </View>
       )}
 
@@ -272,7 +329,17 @@ export default function BarberDashboard() {
           </Pressable>
         </Pressable>
       </Modal>
-
+      {/* MODAL: Create Appointment */}
+      <CreateAppointmentModal
+        visible={!!manualHold}
+        holdId={manualHold?.id ?? null}
+        slotStart={manualHold?.slotStart ?? null}
+        onClose={() => setManualHold(null)}
+        onSaved={() => {
+          setManualHold(null)
+          queryClient.invalidateQueries({ queryKey: ['appointments'] })
+        }}
+      />
     </View>
   )
 }
