@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Touchable } from 'react-native'
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Touchable, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { format, setSeconds } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -52,7 +52,11 @@ export default function ConfirmScreen() {
         try {
             const { error } = await updateAppointmentStatus(holdId, 'confirmed')
             if (error) throw error
-            router.replace('/(client)/book/success')
+            router.replace({
+                pathname: '/(client)/book/success',
+                // We send appointment ID to fetch it updated on success screen in case anything changes on DB
+                params: { id: holdId },
+            })
         } catch {
             Alert.alert('Error', 'No se pudo confirmar la cita. Inténtalo de nuevo.')
         } finally {
@@ -89,68 +93,77 @@ export default function ConfirmScreen() {
     }
 
     return (
-        <View className='flex-1 bg-slate-50 px-5 pt-12'>
-            <Text className='text-lg font-bold text-slate-900 mb-1'>Confirma tu cita</Text>
+        <ScrollView
+            showsHorizontalScrollIndicator={false}
+            className="flex-1 bg-slate-50"
+            contentContainerStyle={{
+                padding: 20,
+                paddingBottom: 40,
+            }}
+        >
+            <View className='flex-1 bg-slate-50 px-5 pt-12'>
+                <Text className='text-lg font-bold text-slate-900 mb-1'>Confirma tu cita</Text>
 
-            {countdownLabel && !isExpired && (
-                <Text className='text-amber-600 font-bold text-sm mb-6'>
-                    Reservado por {countdownLabel} min
-                </Text>
-            )}
-
-            {isExpired && (
-                <View className='bg-red-50 border border-red-200 rounded-xl p-4 mb-6'>
-                    <Text className='text-red-700 font-bold mb-1'>El tiempo de reserva expiró</Text>
-                    <Text className='text-red-600 text-sm'>Elige de nuevo un horario disponible.</Text>
-                    <TouchableOpacity
-                        onPress={() => router.push('/')}
-                        className='flex-row justify-between pt-4 border-t border-slate-100'>
-                        <Text className='bg-slate-50 p-2 rounded-sm'>Reservar de nuevo</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {/* Resumen */}
-            <View className='bg-white border border-slate-200 rounded-2xl p-5 mb-8'>
-                <View className='flex-row justify-between mb-4'>
-                    <Text className='text-slate-500'>Servicio</Text>
-                    <Text className='text-slate-900 font-bold'>{selectedService.name_es}</Text>
-                </View>
-                <View className='flex-row justify-between mb-4'>
-                    <Text className='text-slate-500'>Barber</Text>
-                    <Text className='text-slate-900 font-bold'>{selectedBarber.name}</Text>
-                </View>
-                <View className='flex-row justify-between mb-4'>
-                    <Text className='text-slate-500'>Fecha</Text>
-                    <Text className='text-slate-900 font-bold'>
-                        {format(new Date(selectedSlotStart), "d 'de' MMMM", { locale: es })}
+                {countdownLabel && !isExpired && (
+                    <Text className='text-amber-600 font-bold text-sm mb-6'>
+                        Reservado por {countdownLabel} min
                     </Text>
+                )}
+
+                {isExpired && (
+                    <View className='bg-red-50 border border-red-200 rounded-xl p-4 mb-6'>
+                        <Text className='text-red-700 font-bold mb-1'>El tiempo de reserva expiró</Text>
+                        <Text className='text-red-600 text-sm'>Elige de nuevo un horario disponible.</Text>
+                        <TouchableOpacity
+                            onPress={() => router.push('/')}
+                            className='flex-row justify-between pt-4 border-t border-slate-100'>
+                            <Text className='bg-slate-50 p-2 rounded-sm'>Reservar de nuevo</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Resumen */}
+                <View className='bg-white border border-slate-200 rounded-2xl p-5 mb-8'>
+                    <View className='flex-row justify-between mb-4'>
+                        <Text className='text-slate-500'>Servicio</Text>
+                        <Text className='text-slate-900 font-bold'>{selectedService.name_es}</Text>
+                    </View>
+                    <View className='flex-row justify-between mb-4'>
+                        <Text className='text-slate-500'>Barber</Text>
+                        <Text className='text-slate-900 font-bold'>{selectedBarber.name}</Text>
+                    </View>
+                    <View className='flex-row justify-between mb-4'>
+                        <Text className='text-slate-500'>Fecha</Text>
+                        <Text className='text-slate-900 font-bold'>
+                            {format(new Date(selectedSlotStart), "d 'de' MMMM", { locale: es })}
+                        </Text>
+                    </View>
+                    <View className='flex-row justify-between mb-4'>
+                        <Text className='text-slate-500'>Hora</Text>
+                        <Text className='text-slate-900 font-bold'>
+                            {format(new Date(selectedSlotStart), 'HH:mm')} - {format(new Date(selectedSlotEnd!), 'HH:mm')}
+                        </Text>
+                    </View>
+                    <View className='flex-row justify-between pt-4 border-t border-slate-100'>
+                        <Text className='text-slate-500'>Precio</Text>
+                        <Text className='text-slate-900 font-bold text-lg'>{selectedService.price}€</Text>
+                    </View>
                 </View>
-                <View className='flex-row justify-between mb-4'>
-                    <Text className='text-slate-500'>Hora</Text>
-                    <Text className='text-slate-900 font-bold'>
-                        {format(new Date(selectedSlotStart), 'HH:mm')} - {format(new Date(selectedSlotEnd!), 'HH:mm')}
+
+                <TouchableOpacity
+                    onPress={isExpired ? () => router.push('/book/select-datetime') : handleConfirm}
+                    disabled={isConfirming}
+                    className={`rounded-2xl py-4 items-center mb-3 ${isExpired ? 'bg-slate-300' : 'bg-slate-900'}`}
+                >
+                    <Text className='text-white font-bold text-base'>
+                        {isConfirming ? 'Confirmando...' : isExpired ? 'La reserva expiró, elige otro horario' : 'Confirmar cita'}
                     </Text>
-                </View>
-                <View className='flex-row justify-between pt-4 border-t border-slate-100'>
-                    <Text className='text-slate-500'>Precio</Text>
-                    <Text className='text-slate-900 font-bold text-lg'>{selectedService.price}€</Text>
-                </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleCancel} className='rounded-2xl bg-slate-100 py-3 items-center'>
+                    <Text className='text-slate-500 font-medium'>Cancelar</Text>
+                </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-                onPress={isExpired ? () => router.push('/book/select-datetime') : handleConfirm}
-                disabled={isConfirming}
-                className={`rounded-2xl py-4 items-center mb-3 ${isExpired ? 'bg-slate-300' : 'bg-slate-900'}`}
-            >
-                <Text className='text-white font-bold text-base'>
-                    {isConfirming ? 'Confirmando...' : isExpired ? 'La reserva expiró, elige otro horario' : 'Confirmar cita'}
-                </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleCancel} className='rounded-2xl bg-slate-100 py-3 items-center'>
-                <Text className='text-slate-500 font-medium'>Cancelar</Text>
-            </TouchableOpacity>
-        </View>
+        </ScrollView>
     )
 }

@@ -60,8 +60,10 @@ export const getMyAppointments = async () => {
         `)
         .eq("client_id", user.id)
         .order("start_time", {
-            ascending: true
+            ascending: false
         })
+        .limit(20)
+        
 
     return {
         data: data as AppointmentWithRelations[],

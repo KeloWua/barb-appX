@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale'
 import { useAppointment } from '../../hooks/useMyAppointments'
 import { useCancelAppointment } from '../../hooks/useCancelAppointment'
 import { useAddToCalendar } from '../../hooks/useAddToCalendar'
-import { getMapsUrl, SHOP_NAME, SHOP_PHONE } from '../../lib/shopInfo'
+import { useShareAppointment } from '../../hooks/useShareAppointment'
 
 export default function AppointmentDetails() {
     const router = useRouter()
@@ -15,6 +15,7 @@ export default function AppointmentDetails() {
     const { mutate: cancelAppointment, isPending: isCancelling } = useCancelAppointment(id)
 
     const { addToCalendar } = useAddToCalendar()
+    const { shareAppointment } = useShareAppointment()
 
     if (isLoading) {
         return (
@@ -43,17 +44,9 @@ export default function AppointmentDetails() {
         new Date(appointment.start_time).getTime() - 2 * 60 * 60 * 1000
     )
 
-    const handleAddToCalendar = async () => {
-        try {
-            await addToCalendar(appointment)
-        } catch {
-            if (Platform.OS === 'web') {
-                window.alert('No se pudo generar el archivo de calendario.')
-            } else {
-                Alert.alert('Error', 'No se pudo añadir al calendario.')
-            }
-        }
-    }
+    const handleShare = () => shareAppointment(appointment)
+    
+    const handleAddToCalendar = () => addToCalendar(appointment)
 
     const handleCancelPress = () => {
         const doCancel = () => {
@@ -88,49 +81,6 @@ export default function AppointmentDetails() {
 
 
 
-    const handleShare = async () => {
-        const message = [
-            `💈 Cita en ${SHOP_NAME}`,
-            '',
-            `Servicio: ${appointment.service.name_es}`,
-            `Barbero: ${appointment.barber.name}`,
-            '',
-            `Tienes cita el ${format(
-                new Date(appointment.start_time),
-                "EEEE d 'de' MMMM yyyy",
-                { locale: es }
-            )} de ${format(
-                new Date(appointment.start_time),
-                'HH:mm'
-            )} a ${format(
-                new Date(appointment.end_time),
-                'HH:mm'
-            )}.`,
-            '',
-            `📞 ${SHOP_PHONE}`,
-            `📍 ${getMapsUrl()}`
-        ].join('\n')
-
-        if (Platform.OS === 'web') {
-            if (navigator.share) {
-                try {
-                    await navigator.share({ title: 'Cita en la barbería', text: message })
-                } catch {
-                    // user cancelled
-                }
-            } else {
-                await navigator.clipboard.writeText(message)
-                window.alert('Copiado al portapapeles (tu navegador no soporta compartir directamente)')
-            }
-            return
-        }
-
-        try {
-            await Share.share({ message })
-        } catch {
-            // user cancelled
-        }
-    }
 
     return (
         <ScrollView
@@ -216,14 +166,14 @@ export default function AppointmentDetails() {
 
                 <TouchableOpacity
                     onPress={handleAddToCalendar}
-                    className="bg-slate-900 rounded-2xl py-4 items-center mb-3"
+                    className="bg-blue-600 rounded-2xl py-4 items-center mb-3"
                 >
                     <Text className="text-white font-bold">Añadir al calendario</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={handleShare}
-                    className="bg-slate-200 rounded-2xl py-4 items-center mb-3"
+                    className="bg-slate-300 rounded-2xl py-4 items-center mb-3"
                 >
                     <Text className="font-bold text-slate-900">
                         Compartir

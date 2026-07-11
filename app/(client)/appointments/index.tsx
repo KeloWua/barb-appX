@@ -52,6 +52,7 @@ export default function MyAppointmentsScreen() {
     
     return (
         <ScrollView
+            showsHorizontalScrollIndicator={false}
             className="flex-1 bg-slate-50"
             contentContainerStyle={{
                 padding: 20,
