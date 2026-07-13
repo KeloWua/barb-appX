@@ -138,7 +138,7 @@ export default function SuccessScreen() {
 
                 <TouchableOpacity
                     onPress={handleAddToCalendar}
-                    className="bg-blue-600 rounded-2xl py-4 items-center mb-3"
+                    className="bg-blue-900 rounded-2xl py-4 items-center mb-3"
                 >
                     <Text className="text-white font-bold">Añadir al calendario</Text>
                 </TouchableOpacity>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native'
-import { Calendar } from 'react-native-calendars'
+import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useRouter } from 'expo-router'
 import {
     format, addDays, setHours, setMinutes, isBefore,
@@ -12,6 +12,19 @@ import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
 import { useBookedSlots } from '../../../hooks/useBookedSlots'
 import { START_HOUR, END_HOUR } from '../../../lib/calendarUtils'
+
+// Language configuration for react-native-calendars, will be managed by i18n in future
+LocaleConfig.locales['es'] = {
+  monthNames: [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ],
+  monthNamesShort: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+  dayNames: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+  dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  today: 'Hoy'
+};
+LocaleConfig.defaultLocale = 'es';
 
 // Helper to check if a slot overlaps with another booking
 const isSlotAvailable = (
@@ -221,6 +234,8 @@ export default function SelectDateTimeScreen() {
                 <View className="flex-1 justify-center items-center bg-black/50 px-5">
                     <View className="bg-white rounded-3xl overflow-hidden w-full max-w-md pb-4 shadow-xl">
                         <Calendar
+                            // Starts on Monday rather than Sunday
+                            firstDay={1}
                             // Doesn't allow to book in the past
                             minDate={new Date().toISOString().split('T')[0]}
                             // Actual selected date

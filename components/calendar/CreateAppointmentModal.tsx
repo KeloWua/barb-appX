@@ -151,12 +151,20 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, onClose, on
                     <TouchableOpacity
                         onPress={handleSave}
                         disabled={!selectedService || !selectedClient || isSaving}
-                        className={`rounded-2xl py-4 items-center ${
+                        className={`rounded-2xl py-4 mb-3 items-center ${
                             selectedService && selectedClient ? 'bg-slate-900' : 'bg-slate-300'
                         }`}
                     >
                         <Text className="text-white font-bold">
                             {isSaving ? 'Guardando...' : 'Guardar cita'}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        className='rounded-2xl py-4 items-center bg-red-600'
+                    >
+                        <Text className="text-white font-bold">
+                            Cancelar
                         </Text>
                     </TouchableOpacity>
                 </Pressable>
