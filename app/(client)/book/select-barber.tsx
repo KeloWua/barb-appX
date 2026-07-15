@@ -7,7 +7,7 @@ import { useInteropClassName } from 'expo-router/build/link/useLinkHooks'
 
 export default function SelectBarberScreen() {
     const router = useRouter()
-    const { data: barbers, isLoading } = useBarbers()
+    const { data: barbers, isLoading } = useBarbers(true)
     const { setBarber, selectedService } = useBookingStore()
 
     const handleSelect = (barber: Barber) => {
