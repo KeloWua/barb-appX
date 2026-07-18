@@ -1,4 +1,6 @@
+import { CancelledError } from '@tanstack/react-query'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { supabase } from '../../../lib/supabase'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +14,45 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Extract JWT from Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Not authorized: Authorization header missing' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const jwt = authHeader.replace('Bearer', '')
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
+
+    // 2. Verify that token is valid and get user
+    const { data: { user: callerUser }, error: callerError } = await supabaseAdmin.auth.getUser(jwt)
+
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Not authorized: invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 3. Check that user has barber or admin rol
+    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', callerUser.id)
+      .single()
+
+    if (callerProfileError || !callerProfile || !['barber', 'admin'].includes(callerProfile.role)) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: barber or admin role required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { full_name, phone } = await req.json()
 
     if (!full_name || typeof full_name !== 'string') {
