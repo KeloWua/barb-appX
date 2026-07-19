@@ -3,41 +3,29 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Mod
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useRouter } from 'expo-router'
 import {
-    format, addDays, setHours, setMinutes, isBefore,
-    setMilliseconds, setSeconds, isSameDay, startOfDay, startOfWeek, differenceInDays
+    format, addDays, isSameDay, startOfDay, startOfWeek
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../../hooks/useAuth'
 import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
 import { useBookedSlots } from '../../../hooks/useBookedSlots'
-import { START_HOUR, END_HOUR } from '../../../lib/calendarUtils'
+import { calculateAvailableSlots } from '../../../lib/calendarUtils'
 
 // Language configuration for react-native-calendars, will be managed by i18n in future
 LocaleConfig.locales['es'] = {
-  monthNames: [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ],
-  monthNamesShort: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-  dayNames: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
-  dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
-  today: 'Hoy'
+    monthNames: [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ],
+    monthNamesShort: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+    dayNames: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+    today: 'Hoy'
 };
 LocaleConfig.defaultLocale = 'es';
 
-// Helper to check if a slot overlaps with another booking
-const isSlotAvailable = (
-    slotStart: Date,
-    slotEnd: Date,
-    booked: { start_time: string; end_time: string }[]
-) => {
-    return !booked.some((b) => {
-        const bStart = new Date(b.start_time)
-        const bEnd = new Date(b.end_time)
-        return slotStart < bEnd && slotEnd > bStart
-    })
-}
+
 
 export default function SelectDateTimeScreen() {
     const router = useRouter()
@@ -52,7 +40,7 @@ export default function SelectDateTimeScreen() {
         holdId
     } = useBookingStore()
 
-    const [isDatePickerVisible, setDatePickerVisibility] = useState(false)
+    const [isDatePickerVisible, setIsDatePickerVisible] = useState(false)
 
     // Default to today if no date is selected
     const activeDate = selectedDate ? new Date(selectedDate) : new Date()
@@ -86,27 +74,11 @@ export default function SelectDateTimeScreen() {
     const { morningSlots, afternoonSlots } = useMemo(() => {
         if (!selectedService || !bookedSlots) return { morningSlots: [], afternoonSlots: [] }
 
-        const morning: Date[] = []
-        const afternoon: Date[] = []
-        const now = new Date()
-        const slotInterval = 30
-
-        let currentSlot = setMilliseconds(
-            setSeconds(setMinutes(setHours(activeDate, START_HOUR), 0), 0), 0
+        return calculateAvailableSlots(
+            activeDate,
+            selectedService.duration_minutes,
+            bookedSlots
         )
-        const endOfDay = setMinutes(setHours(activeDate, END_HOUR), 0)
-
-        while (isBefore(currentSlot, endOfDay)) {
-            const slotEnd = new Date(currentSlot.getTime() + selectedService.duration_minutes * 60000)
-            const isFuture = currentSlot > now
-
-            if (isFuture && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
-                if (currentSlot.getHours() < 16) morning.push(currentSlot)
-                else afternoon.push(currentSlot)
-            }
-            currentSlot = new Date(currentSlot.getTime() + slotInterval * 60000)
-        }
-        return { morningSlots: morning, afternoonSlots: afternoon }
     }, [activeDate, bookedSlots, selectedService])
 
     // Handle slot selection
@@ -182,26 +154,26 @@ export default function SelectDateTimeScreen() {
                                 onPress={() => setDate(date.toISOString())}
                                 disabled={isPast}
                                 className={`mr-3 items-center justify-center py-3 px-5 rounded-2xl border ${isSelected
-                                        ? 'bg-slate-900 border-slate-900'
-                                        : isPast
-                                            ? 'bg-slate-50 border-slate-100 opacity-50' // Dimmed effect for past days
-                                            : 'bg-white border-slate-200'
+                                    ? 'bg-slate-900 border-slate-900'
+                                    : isPast
+                                        ? 'bg-slate-50 border-slate-100 opacity-50' // Dimmed effect for past days
+                                        : 'bg-white border-slate-200'
                                     }`}
                             >
                                 <Text className={`text-xs font-bold uppercase mb-1 ${isSelected
-                                        ? 'text-slate-300'
-                                        : isPast
-                                            ? 'text-slate-400'
-                                            : 'text-slate-500'
+                                    ? 'text-slate-300'
+                                    : isPast
+                                        ? 'text-slate-400'
+                                        : 'text-slate-500'
                                     }`}>
                                     {format(date, 'eee', { locale: es })}
                                 </Text>
 
                                 <Text className={`text-xl font-bold ${isSelected
-                                        ? 'text-white'
-                                        : isPast
-                                            ? 'text-slate-300'
-                                            : 'text-slate-900'
+                                    ? 'text-white'
+                                    : isPast
+                                        ? 'text-slate-300'
+                                        : 'text-slate-900'
                                     }`}>
                                     {format(date, 'd')}
                                 </Text>
@@ -212,7 +184,7 @@ export default function SelectDateTimeScreen() {
 
                     {/* FULL CALENDAR BUTTON (At the end of the strip) */}
                     <TouchableOpacity
-                        onPress={() => setDatePickerVisibility(true)}
+                        onPress={() => setIsDatePickerVisible(true)}
                         className='mr-5 items-center justify-center py-3 px-5 rounded-2xl border border-slate-200 bg-white'
                     >
                         <Text className='text-xl mb-1'>📅</Text>
@@ -229,7 +201,7 @@ export default function SelectDateTimeScreen() {
                 visible={isDatePickerVisible}
                 transparent={true}
                 animationType="fade"
-                onRequestClose={() => setDatePickerVisibility(false)}
+                onRequestClose={() => setIsDatePickerVisible(false)}
             >
                 <View className="flex-1 justify-center items-center bg-black/50 px-5">
                     <View className="bg-white rounded-3xl overflow-hidden w-full max-w-md pb-4 shadow-xl">
@@ -242,7 +214,7 @@ export default function SelectDateTimeScreen() {
                             current={activeDate.toISOString().split('T')[0]}
                             onDayPress={(day: any) => {
                                 setDate(new Date(day.timestamp).toISOString())
-                                setDatePickerVisibility(false)
+                                setIsDatePickerVisible(false)
                             }}
                             theme={{
                                 todayTextColor: '#0f172a', // slate-900
@@ -255,7 +227,7 @@ export default function SelectDateTimeScreen() {
 
                         <View className="px-5 mt-2">
                             <TouchableOpacity
-                                onPress={() => setDatePickerVisibility(false)}
+                                onPress={() => setIsDatePickerVisible(false)}
                                 className="py-3 items-center rounded-xl bg-slate-100"
                             >
                                 <Text className="font-bold text-slate-700">Cancelar</Text>

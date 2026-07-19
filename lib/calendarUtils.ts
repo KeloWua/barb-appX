@@ -1,4 +1,4 @@
-import { setHours, setMinutes, setSeconds, setMilliseconds, addMinutes, isBefore, differenceInMinutes, getHours, getMinutes  } from 'date-fns'
+import { setHours, setMinutes, setSeconds, setMilliseconds, addMinutes, isBefore, differenceInMinutes, getHours, getMinutes } from 'date-fns'
 
 
 export const START_HOUR = 9 // 9:00
@@ -41,4 +41,59 @@ export const generateDaySlots = (date: Date): Date[] => {
         current = addMinutes(current, 30)
     }
     return slots
+}
+
+// Helper to check if a slot overlaps with another booking
+const isSlotAvailable = (
+    slotStart: Date,
+    slotEnd: Date,
+    booked: { start_time: string; end_time: string }[]
+) => {
+    return !booked.some((b) => {
+        const bStart = new Date(b.start_time)
+        const bEnd = new Date(b.end_time)
+        return slotStart < bEnd && slotEnd > bStart
+    })
+}
+
+export const calculateAvailableSlots = (
+    date: Date,
+    serviceDuration: number,
+    bookedSlots: { start_time: string; end_time: string }[]
+) => {
+    const morningSlots: Date[] = []
+    const afternoonSlots: Date[] = []
+    const now = new Date()
+    const slotInterval = 30
+
+    let currentSlot = setMilliseconds(
+        setSeconds(setMinutes(setHours(date, START_HOUR), 0), 0),
+        0
+    )
+
+    const endOfDay = setMinutes(setHours(date, END_HOUR), 0)
+
+    while (isBefore(currentSlot, endOfDay)) {
+        const slotEnd = new Date(
+            currentSlot.getTime() + serviceDuration * 60000
+        )
+
+        const isFuture = currentSlot > now
+
+        // Moves slots before 16hr to morning hours and after 16h to afternoon hours
+        if (isFuture && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
+            if (currentSlot.getHours() < 16) {
+                morningSlots.push(currentSlot)
+            } else {
+                afternoonSlots.push(currentSlot)
+            }
+        }
+
+        currentSlot = new Date(currentSlot.getTime() + slotInterval * 60000)
+    }
+
+    return {
+        morningSlots,
+        afternoonSlots,
+    }
 }
