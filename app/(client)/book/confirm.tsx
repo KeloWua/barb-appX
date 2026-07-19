@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Touchable, ScrollView } from 'react-native'
+import { useState } from 'react'
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
-import { format, setSeconds } from 'date-fns'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 import { useBookingStore } from '../../../stores/bookingStore'
 import { useHoldDetails } from '../../../hooks/useHoldDetails'
 import { updateAppointmentStatus, releaseAppointmentHold } from '../../../lib/repositories/appointmentRepository'
+import { Countdown } from '../../../components/ui/Countdown'
 
 export default function ConfirmScreen() {
     const router = useRouter()
@@ -20,31 +21,13 @@ export default function ConfirmScreen() {
     } = useBookingStore()
 
     const { data: hold, isLoading } = useHoldDetails(holdId)
-    const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+    const [isExpired, setIsExpired] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
 
-    // Countdown based on real expires_at from DB
-    useEffect(() => {
-        if (!hold?.expires_at) return
-
-        const tick = () => {
-            const diff = new Date(hold.expires_at!).getTime() - Date.now()
-            setSecondsLeft(Math.max(0, Math.floor(diff / 1000)))
-        }
-
-        tick()
-        const interval = setInterval(tick, 1000)
-        return () => clearInterval(interval)
-    }, [hold?.expires_at])
-
-    const isExpired = secondsLeft === 0
-
-    const countdownLabel = useMemo(() => {
-        if (secondsLeft === null) return null
-        const m = Math.floor(secondsLeft / 60)
-        const s = secondsLeft % 60
-        return `${m}:${s.toString().padStart(2, '0')}`
-    }, [secondsLeft])
+    // Hold countdown function before making user have to choose a new slot again
+    const handleExpire = () => {
+        setIsExpired(true)
+    }
 
     const handleConfirm = async () => {
         if (!holdId || isExpired) return
@@ -104,10 +87,8 @@ export default function ConfirmScreen() {
             <View className='flex-1 bg-slate-50 px-5 pt-12'>
                 <Text className='text-lg font-bold text-slate-900 mb-1'>Confirma tu cita</Text>
 
-                {countdownLabel && !isExpired && (
-                    <Text className='text-amber-600 font-bold text-sm mb-6'>
-                        Reservado por {countdownLabel} min
-                    </Text>
+                { !isExpired && (
+                    <Countdown expiresAt={hold?.expires_at} onExpire={handleExpire}/>
                 )}
 
                 {isExpired && (
