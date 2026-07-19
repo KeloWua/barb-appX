@@ -1,9 +1,10 @@
 import { Text, TouchableOpacity } from 'react-native'
 import { calculateTop, calculateHeight } from '../../lib/calendarUtils'
 import { getStatusTheme } from '../../app/(barber)/index'
+import { AppointmentWithRelations } from '../../types/app';
 
 interface Props {
-    appointment: any;
+    appointment: AppointmentWithRelations;
     onPress?: () => void;
 }
 

@@ -71,7 +71,11 @@ export default function BarberDashboard() {
 
     if (error || !data) {
       console.log(error)
-      const msg = (error as any)?.code === '23P01' ? 'Ese hueco ya está ocupado.' : 'No se pudo crear la cita.'
+      const err = error as { code?: string; message?: string } | null
+      const msg = 
+        err?.code === '23P01'
+        ? 'Ese hueco ya está ocupado.'
+        : 'No se pudo crear la cita.'
       Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
       return
     }

@@ -1,12 +1,13 @@
 import { View, Text, TouchableOpacity } from 'react-native'
 import { AppointmentBlock } from './AppointmentBlock'
 import { COLUMN_WIDTH, getDayTotalHeight, generateDaySlots, calculateTop, PX_PER_MINUTE } from '../../lib/calendarUtils'
+import { AppointmentWithRelations } from '../../types/app'
 
 interface Props {
     barberName: string
-    appointments: any[]
+    appointments: AppointmentWithRelations[]
     date: Date
-    onPressAppointment: (appointment: any) => void
+    onPressAppointment: (appointment: AppointmentWithRelations) => void
     onPressEmptySlot: (slotStart: Date) => void
 }
 
