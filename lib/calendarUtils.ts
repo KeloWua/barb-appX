@@ -1,28 +1,32 @@
 import { setHours, setMinutes, setSeconds, setMilliseconds, addMinutes, isBefore, differenceInMinutes, getHours, getMinutes } from 'date-fns'
 
-
-export const START_HOUR = 9 // 9:00
-export const END_HOUR = 21 // 21:00
 export const PX_PER_MINUTE = 1.5 // Visual scale ( 1 hour = 90px )
 export const COLUMN_WIDTH = 180 // Fixed width of each barber
 
-export const getDayTotalMinutes = () => (END_HOUR - START_HOUR) * 60
-export const getDayTotalHeight = () => getDayTotalMinutes() * PX_PER_MINUTE
+export type TimeShift = {
+    start_time: string; // e.g., "10:00"
+    end_time: string; // e.g., "14:00"
+}
 
-// Converts one hour (ISO string) in 'top' (Y) position
-export const calculateTop = (startTime: string): number => {
+
+// Dynamic calculations based on provided start/end hours
+export const getDayTotalMinutes = (startHour: number = 9, endHour: number = 21) => (endHour - startHour) * 60
+export const getDayTotalHeight = (startHour: number = 9, endHour: number = 21) => getDayTotalMinutes(startHour, endHour) * PX_PER_MINUTE
+
+// Converts one hour (ISO string) in 'top' (Y) position relative to the grid start time
+export const calculateTop = (startTime: string, baseStartHour: number = 9): number => {
     const date = new Date(startTime)
     const hours = getHours(date)
     const minutes = getMinutes(date)
 
-    const minutesFromStart = (hours - START_HOUR) * 60 + minutes
+    const minutesFromStart = (hours - baseStartHour) * 60 + minutes
 
-    // If appointment is before opening hour, we stick it on top
+    // If appointment is before opening hour, we stick it on top to avoid visual bugs
     if (minutesFromStart < 0) return 0
     return minutesFromStart * PX_PER_MINUTE
 }
 
-// Calculate height based on duration
+// Calculate height based on duration (This doesn't need start/end hours, it just measures time)
 export const calculateHeight = (startTime: string, endTime: string): number => {
     const start = new Date(startTime)
     const end = new Date(endTime)
@@ -31,10 +35,11 @@ export const calculateHeight = (startTime: string, endTime: string): number => {
     return durationMinutes * PX_PER_MINUTE
 }
 
-export const generateDaySlots = (date: Date): Date[] => {
+// Generates clickable empty slots for the Barber Dashboard grid
+export const generateDaySlots = (date: Date, startHour: number = 9, endHour: number = 21): Date[] => {
     const slots: Date[] = []
-    let current = setMilliseconds(setSeconds(setMinutes(setHours(date, START_HOUR), 0), 0), 0)
-    const end = setMilliseconds(setSeconds(setMinutes(setHours(date, END_HOUR), 0), 0), 0)
+    let current = setMilliseconds(setSeconds(setMinutes(setHours(date, startHour), 0), 0), 0)
+    const end = setMilliseconds(setSeconds(setMinutes(setHours(date, endHour), 0), 0), 0)
 
     while (isBefore(current, end)) {
         slots.push(current)
@@ -43,7 +48,7 @@ export const generateDaySlots = (date: Date): Date[] => {
     return slots
 }
 
-// Helper to check if a slot overlaps with another booking
+// Helper to check if a slot overlaps with another booking (or a blocked break)
 const isSlotAvailable = (
     slotStart: Date,
     slotEnd: Date,
@@ -56,32 +61,59 @@ const isSlotAvailable = (
     })
 }
 
+// NEW helper: Checks if a slot fits entirely INSIDE any of the barber's shifts
+const isWithinShifts = (slotStart: Date, slotEnd: Date, shifts: TimeShift[], baseDate: Date) => {
+    if (shifts.length === 0) return false;
+
+    return shifts.some(shift => {
+        const [startHour, startMin] = shift.start_time.split(':').map(Number)
+        const [endHour, endMin] = shift.end_time.split(':').map(Number)
+
+        const shiftStart = setMilliseconds(setSeconds(setMinutes(setHours(baseDate, startHour), startMin), 0), 0)
+        const shiftEnd = setMilliseconds(setSeconds(setMinutes(setHours(baseDate, endHour), endMin), 0), 0)
+
+        // The slot must start at or after the shift starts, AND end at or before the shift ends
+        return slotStart >= shiftStart && slotEnd <= shiftEnd
+    })
+}
+
+// Calculate slots based on a SPECIFIC BARBER's dynamic schedule shifts
 export const calculateAvailableSlots = (
     date: Date,
     serviceDuration: number,
-    bookedSlots: { start_time: string; end_time: string }[]
+    bookedSlots: { start_time: string; end_time: string }[],
+    shifts: TimeShift[],
+    isDayOff: boolean = false
 ) => {
     const morningSlots: Date[] = []
     const afternoonSlots: Date[] = []
+
+    // If it's their day off or they are on vacation, return nothing
+    if (isDayOff || !shifts || shifts.length === 0) {
+        return { morningSlots, afternoonSlots }
+    }
     const now = new Date()
     const slotInterval = 30
 
+    // Scan the entire 24h day. isWithinShifts will automatically filter out the hours they don't work
     let currentSlot = setMilliseconds(
-        setSeconds(setMinutes(setHours(date, START_HOUR), 0), 0),
+        setSeconds(setMinutes(setHours(date, 0), 0), 0),
         0
     )
-
-    const endOfDay = setMinutes(setHours(date, END_HOUR), 0)
+    const endOfDay = setMinutes(setHours(date, 23), 0)
 
     while (isBefore(currentSlot, endOfDay)) {
         const slotEnd = new Date(
             currentSlot.getTime() + serviceDuration * 60000
         )
-
         const isFuture = currentSlot > now
 
         // Moves slots before 16hr to morning hours and after 16h to afternoon hours
-        if (isFuture && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
+        // Checks: 
+        // 1. Is in future? 
+        // 2. Is iside a working shift? 
+        // 3. Is free from appointments?
+        if (isFuture && isWithinShifts(currentSlot, slotEnd, shifts, date) && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
             if (currentSlot.getHours() < 16) {
                 morningSlots.push(currentSlot)
             } else {

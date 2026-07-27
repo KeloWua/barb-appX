@@ -1,12 +1,14 @@
 import { View } from 'react-native'
-import { START_HOUR, END_HOUR, PX_PER_MINUTE, COLUMN_WIDTH } from '../../lib/calendarUtils'
+import { PX_PER_MINUTE, COLUMN_WIDTH } from '../../lib/calendarUtils'
 
 interface Props {
     columnsCount: number;
+    startHour?: number;
+    endHour?: number;
 }
 
-export function CalendarGridLines({ columnsCount }: Props) {
-    const blocksCount = END_HOUR - START_HOUR
+export function CalendarGridLines({ columnsCount, startHour = 9, endHour = 21 }: Props) {
+    const blocksCount = endHour - startHour
     const halfHourHeight = 30 * PX_PER_MINUTE
 
     // Calculate exact width: Number of barbers * column width
@@ -37,7 +39,7 @@ export function CalendarGridLines({ columnsCount }: Props) {
                 </View>
             ))}
 
-            {/* Last grid line */}
+            {/* Last grid line to close the calendar at the bottom */}
             <View
                 style={{ top: blocksCount * 60 * PX_PER_MINUTE, position: 'absolute', width: '100%' }}
                 className='h-[1px] bg-slate-200'

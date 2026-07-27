@@ -10,7 +10,8 @@ import { useAuth } from '../../../hooks/useAuth'
 import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
 import { useBookedSlots } from '../../../hooks/useBookedSlots'
-import { calculateAvailableSlots } from '../../../lib/calendarUtils'
+import { calculateAvailableSlots, TimeShift } from '../../../lib/calendarUtils'
+import { useBarberSchedule } from '../../../hooks/useBarberSchedules'
 
 // Language configuration for react-native-calendars, will be managed by i18n in future
 LocaleConfig.locales['es'] = {
@@ -64,22 +65,36 @@ export default function SelectDateTimeScreen() {
     )
 
     // Booked hours
-    const { data: bookedSlots, isLoading: isLoadingBooked } = useBookedSlots(
-        selectedBarber?.id,
-        format(activeDate, 'yyyy-MM-dd'),
-        format(activeDate, 'yyyy-MM-dd')
-    )
+    const { data: schedules = [], isLoading: isLoadingSchedule } = useBarberSchedule(selectedBarber?.id)
 
-    // Generate available slots
+    // Generate available slots based on REAL barber shifts
     const { morningSlots, afternoonSlots } = useMemo(() => {
-        if (!selectedService || !bookedSlots) return { morningSlots: [], afternoonSlots: [] }
+        if (!selectedService) return { morningSlots: [], afternoonSlots: [] }
 
+        // 1. Identify the day of the week (0 = Sunday, 1 = Monday...)
+        const dayOfWeek = activeDate.getDay()
+
+        // 2. Filter the barber's schedule for THIS specific day
+        const todaySchedules = schedules.filter(s => s.day_of_week === dayOfWeek)
+
+        // 3. Check if any row marks today as a day off
+        const isDayOff = todaySchedules.some(s => s.is_day_off)
+
+        // 4. Extract the exact working shifts (e.g. 10:00 to 14:00)
+        const realShifts: TimeShift[] = todaySchedules.map(s => ({
+            start_time: s.start_time,
+            end_time: s.end_time
+        }))
+
+        // 5. Calculate using the real-time appointments array (from WebSockets)
         return calculateAvailableSlots(
             activeDate,
             selectedService.duration_minutes,
-            bookedSlots
+            appointments || [], // We use 'appointments' because it has real-time WebSockets
+            realShifts,
+            isDayOff
         )
-    }, [activeDate, bookedSlots, selectedService])
+    }, [activeDate, appointments, selectedService, schedules])
 
     // Handle slot selection
     const handleSelectSlot = async (slotStart: Date) => {
@@ -239,7 +254,7 @@ export default function SelectDateTimeScreen() {
 
             {/* AVAILABLE TIME SLOTS */}
             <ScrollView className='flex-1 px-5 pt-6'>
-                {(isLoading || isLoadingBooked) ? (
+                {(isLoading || isLoadingSchedule) ? (
                     <ActivityIndicator size='large' color='#0f172a' className='mt-10' />
                 ) : morningSlots.length === 0 && afternoonSlots.length === 0 ? (
                     <View className='items-center justify-center mt-10'>

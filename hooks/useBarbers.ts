@@ -10,15 +10,17 @@ export function useBarbers(clientsOnly: boolean = false) {
         .from('barbers')
         .select('*')
         .eq('is_active', true)
-        // 1. Fetch them in normal alphabetical order first
-        .order('name', { ascending: true }) 
+        // 1. Fetch in alphabetical order
+        .order('name', { ascending: true })
+
 
       if (clientsOnly) {
+        // Exclude dummy barbers (profile_id is null or empty string)
         query = query.not('profile_id', 'is', null)
       }
 
       const { data, error } = await query
-
+      
       if (error) {
         throw new Error(error.message)
       }
@@ -27,13 +29,12 @@ export function useBarbers(clientsOnly: boolean = false) {
 
       // 2. Custom sort: Force barbers without profile_id ("Extras") to the very end
       return barbers.sort((a, b) => {
-        const aIsDummy = a.profile_id === null
-        const bIsDummy = b.profile_id === null
+        const aIsDummy = !a.profile_id
+        const bIsDummy = !b.profile_id
 
         if (aIsDummy && !bIsDummy) return 1  // Push 'a' to the end
         if (!aIsDummy && bIsDummy) return -1 // Push 'b' to the end
-        
-        // If both are normal (or both are dummies), keep alphabetical order
+
         return a.name.localeCompare(b.name)
       })
     },
