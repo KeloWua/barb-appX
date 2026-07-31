@@ -30,6 +30,20 @@ export const getAppointmentsByRange = async (
     }
 }
 
+// RLS for clients only avoiding them to see other clients info
+export const getBusySlots = async (
+    barberId: string,
+    startDate: string,
+    endDate: string
+) => {
+    const { data, error } = await supabase.rpc('get_busy_slots', {
+        p_barber_id: barberId,
+        p_start_date: startDate,
+        p_end_date: endDate
+    })
+    return { data: data ?? [], error }
+}
+
 export const getMyAppointments = async () => {
     const {
         data: { user }

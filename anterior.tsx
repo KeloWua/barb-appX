@@ -1,22 +1,19 @@
 import { useMemo, useState } from 'react'
-import { View, Text, Modal, TouchableOpacity, Pressable, ScrollView, Alert, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, Modal, TouchableOpacity, Pressable, ScrollView, Alert, Platform } from 'react-native'
 import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, isSameDay, startOfWeek, endOfWeek } from "date-fns"
 import { es } from 'date-fns/locale'
-import { useQueryClient } from '@tanstack/react-query'
-
 import { useAuth } from '../../hooks/useAuth'
 import { useAppointments } from '../../hooks/useAppointments'
 import { useBarbers } from '../../hooks/useBarbers'
-import { createProvisionalHold } from '../../lib/repositories/appointmentRepository'
-
 import SideMenu from '../../components/ui/SideMenu'
 import MenuButton from '../../components/ui/MenuButton'
-
-
 import { TimeGrid } from '../../components/calendar/TimeGrid'
 import { BarberColumn } from '../../components/calendar/BarberColumn'
 import { CalendarGridLines } from '../../components/calendar/CalendarGridLines'
+import { useQueryClient } from '@tanstack/react-query'
+import { createProvisionalHold } from '../../lib/repositories/appointmentRepository'
 import { CreateAppointmentModal } from '../../components/calendar/CreateAppointmentModal'
+
 import type { AppointmentWithRelations } from '../../types/app'
 import type { appointment_status } from '../../types/database'
 
@@ -29,6 +26,7 @@ export const statusConfig: Partial<Record<appointment_status, { label: string; b
   no_show: { label: 'No show', bg: 'bg-slate-100', text: 'text-slate-500', border: 'border-slate-400' },
 }
 
+// Visual FallBack if residual 'pending' from DB...
 export const getStatusTheme = (status: appointment_status) => {
   return statusConfig[status] || {
     label: status,
@@ -38,27 +36,27 @@ export const getStatusTheme = (status: appointment_status) => {
   }
 }
 
-// VISUAL SHOP SCHEDULE (Will later come from database)
-const SHOP_OPEN_HOUR = 9
-const SHOP_CLOSE_HOUR = 21
-
 export default function BarberDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null)
   const [selectedBarberIds, setSelectedBarberIds] = useState<string[]>([])
   const [manualHold, setManualHold] = useState<{ id: string; slotStart: Date } | null>(null)
-
   const queryClient = useQueryClient()
+
   const { profile } = useAuth()
-
-  // false = we want to see the 'Extras' dummy barber in the dashboard
-  const { data: barbers = [] } = useBarbers(false)
   const { appointments, isLoading, changeStatus, isChangingStatus } = useAppointments(selectedDate, viewMode)
+  const { data: barbers = [] } = useBarbers()
 
-  const activeBarbers = barbers.filter(b =>
-    selectedBarberIds.length === 0 || selectedBarberIds.includes(b.id)
-  )
+  const weekDays = useMemo(() => {
+    const monday = startOfWeek(selectedDate, { weekStartsOn: 1 })
+    return Array.from({ length: 7 }).map((_, i) => addDays(monday, i))
+  }, [selectedDate])
+
+  const dayAppointments = viewMode === 'week'
+    ? (appointments || []).filter(a => isSameDay(new Date(a.start_time), selectedDate))
+    : (appointments || [])
+
 
   const handleEmptySlotPress = async (barberId: string, slotStart: Date) => {
     if (!profile?.id) return
@@ -72,14 +70,19 @@ export default function BarberDashboard() {
     })
 
     if (error || !data) {
-      console.error(error)
-      const msg = (error as any)?.code === '23P01' ? 'Ese hueco ya está ocupado.' : 'No se pudo crear la cita.'
+      console.log(error)
+      const err = error as { code?: string; message?: string } | null
+      const msg = 
+        err?.code === '23P01'
+        ? 'Ese hueco ya está ocupado.'
+        : 'No se pudo crear la cita.'
       Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
       return
     }
 
     setManualHold({ id: data.id, slotStart })
   }
+
 
   // Navigation helpers
   const goBack = () => {
@@ -103,6 +106,10 @@ export default function BarberDashboard() {
     }
     return format(selectedDate, 'MMMM yyyy', { locale: es })
   }
+
+  const activeBarbers = barbers.filter(b =>
+    selectedBarberIds.length === 0 || selectedBarberIds.includes(b.id)
+  )
 
   return (
     <View className='flex-1 bg-slate-50'>
@@ -136,29 +143,55 @@ export default function BarberDashboard() {
         ))}
       </View>
 
-      {/* Barbers Filter */}
       <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 mb-3">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="px-4 mb-3"
+        >
           <TouchableOpacity
             onPress={() => setSelectedBarberIds([])}
-            className={`mr-2 px-4 py-2 rounded-full ${selectedBarberIds.length === 0 ? "bg-slate-900" : "bg-slate-200"}`}
+            className={`mr-2 px-4 py-2 rounded-full ${selectedBarberIds.length === 0
+              ? "bg-slate-900"
+              : "bg-slate-200"
+              }`}
           >
-            <Text className={selectedBarberIds.length === 0 ? "text-white" : "text-slate-700"}>
+            <Text
+              className={
+                selectedBarberIds.length === 0
+                  ? "text-white"
+                  : "text-slate-700"
+              }
+            >
               Todos
             </Text>
           </TouchableOpacity>
 
           {barbers.map(barber => {
             const selected = selectedBarberIds.includes(barber.id)
+
             return (
               <TouchableOpacity
                 key={barber.id}
                 onPress={() =>
-                  setSelectedBarberIds(ids => selected ? ids.filter(id => id !== barber.id) : [...ids, barber.id])
+                  setSelectedBarberIds(ids =>
+                    selected
+                      ? ids.filter(id => id !== barber.id)
+                      : [...ids, barber.id]
+                  )
                 }
-                className={`mr-2 px-4 py-2 rounded-full ${selected ? "bg-slate-900" : "bg-slate-200"}`}
+                className={`mr-2 px-4 py-2 rounded-full ${selected
+                  ? "bg-slate-900"
+                  : "bg-slate-200"
+                  }`}
               >
-                <Text className={selected ? "text-white" : "text-slate-700"}>
+                <Text
+                  className={
+                    selected
+                      ? "text-white"
+                      : "text-slate-700"
+                  }
+                >
                   {barber.name}
                 </Text>
               </TouchableOpacity>
@@ -166,7 +199,6 @@ export default function BarberDashboard() {
           })}
         </ScrollView>
       </View>
-
       {/* Date navigator */}
       <View className='flex-row items-center justify-between px-4 mb-3 z-10'>
         <TouchableOpacity onPress={goBack} className='p-2 bg-white rounded-full shadow-sm'>
@@ -180,32 +212,48 @@ export default function BarberDashboard() {
         </TouchableOpacity>
       </View>
 
+      {/* Week Navigator */}
+      {viewMode === 'week' && (
+        <View className="flex-row justify-between px-4 mb-2">
+          {weekDays.map((day, i) => {
+            const isSelected = isSameDay(day, selectedDate)
+            return (
+              <TouchableOpacity
+                key={i}
+                onPress={() => setSelectedDate(day)}
+                className={`flex-1 flex-col items-center justify-center rounded-full border ${isSelected ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
+                  }`}
+                style={{ height: 44, marginHorizontal: 3 }}
+              >
+                <Text className={`text-[9px] font-bold uppercase leading-tight ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                  {format(day, 'EEE', { locale: es })}
+                </Text>
+                <Text className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                  {format(day, 'd')}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+
       {/* Calendar Body */}
       {isLoading ? (
         <View className='flex-1 items-center justify-center'>
-          <ActivityIndicator size="large" color="#0f172a" />
+          <Text className='text-slate-400'>Cargando agenda...</Text>
         </View>
-      ) : viewMode === 'day' ? (
+
+      ) : (viewMode === 'day' || viewMode === 'week') ? (
 
         <ScrollView className='flex-1 bg-white' contentContainerStyle={{ paddingBottom: 40 }}>
           <View className='flex-row'>
-
-            {/* Time Grid (Left Rules) */}
-            <TimeGrid startHour={SHOP_OPEN_HOUR} endHour={SHOP_CLOSE_HOUR} />
-
+            <TimeGrid />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex-1'>
               <View className='flex-row relative'>
-
-                {/* Background Zebra Lines */}
-                <CalendarGridLines
-                  columnsCount={activeBarbers.length}
-                  startHour={SHOP_OPEN_HOUR}
-                  endHour={SHOP_CLOSE_HOUR}
-                />
-
+                <CalendarGridLines columnsCount={activeBarbers.length} />
                 <View className='flex-row z-10'>
                   {activeBarbers.map(barber => {
-                    const barberAppointments = (appointments || []).filter(a => a.barber_id === barber.id)
+                    const barberAppointments = dayAppointments.filter(a => a.barber_id === barber.id)
                     return (
                       <BarberColumn
                         key={barber.id}
@@ -213,22 +261,20 @@ export default function BarberDashboard() {
                         appointments={barberAppointments}
                         date={selectedDate}
                         onPressAppointment={(apt) => setSelectedAppointment(apt as AppointmentWithRelations)}
-                        onPressEmptySlot={(slotStart) => handleEmptySlotPress(barber.id, slotStart)}
+                        onPressEmptySlot={(slot) => handleEmptySlotPress(barber.id, slot)}
                       />
                     )
                   })}
                 </View>
-
               </View>
             </ScrollView>
-
           </View>
         </ScrollView>
 
       ) : (
         <View className='flex-1 items-center justify-center bg-white'>
           <Text className='text-4xl mb-3'>📅</Text>
-          <Text className='text-slate-500 font-medium'>Vista multi-columna solo disponible en 'hoy'</Text>
+          <Text className='text-slate-500 font-medium'>Vista de mes pr\u00f3ximamente</Text>
         </View>
       )}
 
@@ -263,6 +309,7 @@ export default function BarberDashboard() {
               Cambiar estado a:
             </Text>
 
+            {/* PENDING: extract state filtering to other file */}
             {Object.entries(statusConfig)
               .filter(([status]) => status !== selectedAppointment?.status)
               .map(([status, config]) => (
@@ -286,7 +333,6 @@ export default function BarberDashboard() {
           </Pressable>
         </Pressable>
       </Modal>
-
       {/* MODAL: Create Appointment */}
       <CreateAppointmentModal
         visible={!!manualHold}
@@ -298,7 +344,6 @@ export default function BarberDashboard() {
           queryClient.invalidateQueries({ queryKey: ['appointments'] })
         }}
       />
-
     </View>
   )
 }

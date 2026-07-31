@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Platform } from 'react-native'
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useRouter } from 'expo-router'
 import {
@@ -9,9 +9,10 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../../../hooks/useAuth'
 import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
-import { useBookedSlots } from '../../../hooks/useBookedSlots'
 import { calculateAvailableSlots, TimeShift } from '../../../lib/calendarUtils'
 import { useBarberSchedule } from '../../../hooks/useBarberSchedules'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getBusySlots } from '../../../lib/repositories/appointmentRepository'
 
 // Language configuration for react-native-calendars, will be managed by i18n in future
 LocaleConfig.locales['es'] = {
@@ -41,10 +42,29 @@ export default function SelectDateTimeScreen() {
         holdId
     } = useBookingStore()
 
+    const queryClient = useQueryClient()
+
     const [isDatePickerVisible, setIsDatePickerVisible] = useState(false)
 
     // Default to today if no date is selected
     const activeDate = selectedDate ? new Date(selectedDate) : new Date()
+
+
+    const { data: busySlots = [] } = useQuery({
+        queryKey: ['busySlots', selectedBarber?.id, format(activeDate, 'yyyy-MM-dd')],
+        queryFn: async () => {
+            const { data } = await getBusySlots(
+                selectedBarber!.id,
+                format(activeDate, 'yyyy-MM-dd'),
+                format(activeDate, 'yyyy-MM-dd')
+            )
+
+            return data
+        },
+        enabled: !!selectedBarber?.id,
+    })
+
+
 
     // Smart logic: If activeDate is from another week (more than 6 days away frm today),
     // we make te horizontal strip start on that WEEK(Mon-Sun) so it is visible
@@ -58,7 +78,7 @@ export default function SelectDateTimeScreen() {
     }, [stripStartDate])
 
     // Fetch real-time appointments
-    const { appointments, isLoading, holdSlot, releaseHold } = useAppointments(
+    const { isLoading, holdSlot, releaseHold } = useAppointments(
         activeDate,
         'day',
         selectedBarber?.id
@@ -90,11 +110,13 @@ export default function SelectDateTimeScreen() {
         return calculateAvailableSlots(
             activeDate,
             selectedService.duration_minutes,
-            appointments || [], // We use 'appointments' because it has real-time WebSockets
+            busySlots || [], // We use 'busySlots' ( before appointments || [] ) because it has real-time WebSockets
             realShifts,
             isDayOff
         )
-    }, [activeDate, appointments, selectedService, schedules])
+    }, [activeDate, busySlots, selectedService, schedules])
+
+
 
     // Handle slot selection
     const handleSelectSlot = async (slotStart: Date) => {
@@ -115,11 +137,10 @@ export default function SelectDateTimeScreen() {
             setSlot(slotStart.toISOString(), slotEnd.toISOString())
             router.push('/book/confirm')
         } catch (error: any) {
-            if (error.message === 'SLOT_TAKEN') {
-                Alert.alert('Hueco ocupado', 'Alguien acaba de reservar esta hora. Elige otra.')
-            } else {
-                Alert.alert('Error', 'No se pudo completar la reserva. Inténtalo de nuevo.')
-            }
+            const msg = error.message === 'SLOT_TAKEN'
+                ? 'Alguien acaba de reservar esta hora. Elige otra.'
+                : 'No se pudo completar la reserva. Inténtalo de nuevo.'
+            Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
         }
     }
 

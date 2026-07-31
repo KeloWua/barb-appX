@@ -57,8 +57,8 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'appointments' },
                 () => {
-                    // This forces the hook to re-fetch automatically when DB changes
                     queryClient.invalidateQueries({ queryKey: ['appointments'] })
+                    queryClient.invalidateQueries({ queryKey: ['busySlots'] })
                 }
             )
             .subscribe()
@@ -67,6 +67,22 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
             supabase.removeChannel(channel)
         }
     }, [queryClient])
+
+    // 2b. Aditional Broadcast for clients (postgres_changes won't reach them due to RLS, so we use a broadcast channel instead)
+    useEffect(() => {
+        if (!barberId) return
+
+        const broadcastChannel = supabase.channel(`barber-${barberId}`, { config: { private: true } })
+            .on('broadcast', { event: '*' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['appointments'] })
+                queryClient.invalidateQueries({ queryKey: ['busySlots'] })
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(broadcastChannel)
+        }
+    }, [queryClient, barberId])
 
     // 3. Status change mutation (for Barbers)
     const { mutate: changeStatus, isPending: isChangingStatus } = useMutation({
