@@ -57,6 +57,15 @@ export default function SideMenu() {
                         <Text className='text-base text-slate-700 font-medium'>👤 Perfil</Text>
                     </TouchableOpacity>
 
+                    {role === 'barber' && (
+                        <TouchableOpacity
+                            onPress={() => handleNavigate('/(barber)/settings/schedule')}
+                            className='flex-row items-center py-4 border-b border-slate-100'
+                        >
+                            <Text className='text-base text-slate-700 font-medium'>📅 Mi horario</Text>
+                        </TouchableOpacity>
+                    )}
+
                     {/* Log Out at the bottom */}
                     <View className='absolute bottom-12 left-6 right-6'>
                         <TouchableOpacity
