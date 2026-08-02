@@ -11,7 +11,7 @@ export function useBarberSchedule(barberId: string | undefined) {
                 .from('barber_schedules')
                 .select('*')
                 .eq('barber_id', barberId)
-            
+            console.log('useBarberSchedule', { barberId, data, error })
             if (error) throw error
             return data
         },

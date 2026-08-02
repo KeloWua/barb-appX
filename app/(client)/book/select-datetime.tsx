@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Mod
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useRouter } from 'expo-router'
 import {
-    format, addDays, isSameDay, startOfDay, startOfWeek
+    format, addDays, isSameDay, startOfDay, startOfWeek,
+    setHours,
+    setMinutes
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../../hooks/useAuth'
@@ -97,20 +99,35 @@ export default function SelectDateTimeScreen() {
         // 2. Filter the barber's schedule for THIS specific day
         const todaySchedules = schedules.filter(s => s.day_of_week === dayOfWeek)
 
-        // 3. Check if any row marks today as a day off
-        const isDayOff = todaySchedules.some(s => s.is_day_off)
+        // 3. Splits real shifts from partially blocked shifts (e.g. lunch break, rest, etc.)
+        const workShifts = todaySchedules.filter(s => !s.is_day_off)
+        const blockedRanges = todaySchedules.filter(s => s.is_day_off)
 
-        // 4. Extract the exact working shifts (e.g. 10:00 to 14:00)
-        const realShifts: TimeShift[] = todaySchedules.map(s => ({
+        // 4. Real day off check: If the barber has no shifts today, we consider it a day off
+        const isDayOff = workShifts.length === 0
+
+        // 5. Extract the exact working shifts (e.g. 10:00 to 14:00)
+        const realShifts: TimeShift[] = workShifts.map(s => ({
             start_time: s.start_time,
             end_time: s.end_time
         }))
 
-        // 5. Calculate using the real-time appointments array (from WebSockets)
+        // 6. Blocked ranges are treated as "appointments" inside bookedSlots
+        // isSlotAvailable will automatically filter them out when calculating available slots
+        const blockedSlots = blockedRanges.map(b => {
+            const [startH, startM] = b.start_time.split(':').map(Number)
+            const [endH, endM] = b.end_time.split(':').map(Number)
+            return {
+                start_time: setMinutes(setHours(activeDate, startH), startM).toISOString(),
+                end_time: setMinutes(setHours(activeDate, endH), endM).toISOString()
+            }
+        })
+
+
         return calculateAvailableSlots(
             activeDate,
             selectedService.duration_minutes,
-            busySlots || [], // We use 'busySlots' ( before appointments || [] ) because it has real-time WebSockets
+            [...busySlots, ...blockedSlots], // before: busySlots only
             realShifts,
             isDayOff
         )

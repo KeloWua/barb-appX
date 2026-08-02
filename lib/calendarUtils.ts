@@ -111,7 +111,7 @@ export const calculateAvailableSlots = (
         // Moves slots before 16hr to morning hours and after 16h to afternoon hours
         // Checks: 
         // 1. Is in future? 
-        // 2. Is iside a working shift? 
+        // 2. Is inside a working shift? 
         // 3. Is free from appointments?
         if (isFuture && isWithinShifts(currentSlot, slotEnd, shifts, date) && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
             if (currentSlot.getHours() < 16) {
