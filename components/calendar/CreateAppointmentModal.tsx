@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal, Pressable, Platform, Alert } from 'react-native'
 import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { es } from 'date-fns/locale'
 import { useServices } from '../../hooks/useServices'
 import { useCustomerSearch } from '../../hooks/useCustomerSearch'
@@ -11,11 +12,12 @@ interface Props {
     visible: boolean
     holdId: string | null
     slotStart: Date | null
+    timezone: string
     onClose: () => void
     onSaved: () => void
 }
 
-export function CreateAppointmentModal({ visible, holdId, slotStart, onClose, onSaved }: Props) {
+export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, onClose, onSaved }: Props) {
     const { data: services = [] } = useServices()
     const { search, setSearch, results, isLoading, createWalkinClient } = useCustomerSearch()
 
@@ -80,7 +82,7 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, onClose, on
                 <Pressable className="bg-white p-5 rounded-t-3xl pb-10 max-h-[85%]" onPress={(e) => e.stopPropagation()}>
                     <Text className="text-xl font-bold text-slate-900 mb-1">Nueva cita</Text>
                     <Text className="text-slate-500 mb-6">
-                        {format(slotStart, "EEEE d 'de' MMMM, HH:mm", { locale: es })}
+                        {formatInTimeZone(slotStart, timezone, "EEEE d 'de' MMMM, HH:mm", { locale: es })}
                     </Text>
 
                     <Text className="text-sm font-semibold text-slate-400 mb-2 uppercase">Servicio</Text>

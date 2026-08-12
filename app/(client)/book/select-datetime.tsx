@@ -11,10 +11,12 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../../../hooks/useAuth'
 import { useAppointments } from '../../../hooks/useAppointments'
 import { useBookingStore } from '../../../stores/bookingStore'
-import { calculateAvailableSlots, TimeShift } from '../../../lib/calendarUtils'
+import { useShopSettings } from '../../../hooks/useShopSettings'
+import { calculateAvailableSlots, DEFAULT_TIMEZONE, TimeShift } from '../../../lib/calendarUtils'
 import { useBarberSchedule } from '../../../hooks/useBarberSchedules'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getBusySlots } from '../../../lib/repositories/appointmentRepository'
+import { toZonedTime } from 'date-fns-tz'
 
 // Language configuration for react-native-calendars, will be managed by i18n in future
 LocaleConfig.locales['es'] = {
@@ -43,13 +45,16 @@ export default function SelectDateTimeScreen() {
         setSlot,
         holdId
     } = useBookingStore()
-
+    
     const queryClient = useQueryClient()
 
     const [isDatePickerVisible, setIsDatePickerVisible] = useState(false)
 
+    const { data: shopSettings } = useShopSettings()
+    const timezone = shopSettings?.timezone ?? DEFAULT_TIMEZONE
+
     // Default to today if no date is selected
-    const activeDate = selectedDate ? new Date(selectedDate) : new Date()
+    const activeDate = selectedDate ? new Date(selectedDate) : toZonedTime(new Date(), timezone)
 
 
     const { data: busySlots = [] } = useQuery({
@@ -129,9 +134,10 @@ export default function SelectDateTimeScreen() {
             selectedService.duration_minutes,
             [...busySlots, ...blockedSlots], // before: busySlots only
             realShifts,
-            isDayOff
+            isDayOff,
+            timezone
         )
-    }, [activeDate, busySlots, selectedService, schedules])
+    }, [activeDate, busySlots, selectedService, schedules, timezone])
 
 
 

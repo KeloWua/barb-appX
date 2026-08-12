@@ -34,7 +34,6 @@ export const useUpsertScheduleBlock = (barberId: string | undefined) => {
             is_day_off: boolean
         }) => upsertScheduleBlock(block),
         onSuccess: () => {
-            console.log('Schedule block upserted successfully') // Debugging log
             queryClient.invalidateQueries({ queryKey: ['barberSchedule', barberId] })
         },
     })

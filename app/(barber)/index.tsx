@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { useAppointments } from '../../hooks/useAppointments'
 import { useBarbers } from '../../hooks/useBarbers'
+import { useShopSettings } from '../../hooks/useShopSettings'
 import { createProvisionalHold } from '../../lib/repositories/appointmentRepository'
 
 import SideMenu from '../../components/ui/SideMenu'
@@ -19,6 +20,7 @@ import { CalendarGridLines } from '../../components/calendar/CalendarGridLines'
 import { CreateAppointmentModal } from '../../components/calendar/CreateAppointmentModal'
 import type { AppointmentWithRelations } from '../../types/app'
 import type { appointment_status } from '../../types/database'
+import { DEFAULT_TIMEZONE } from '../../lib/calendarUtils'
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -38,11 +40,15 @@ export const getStatusTheme = (status: appointment_status) => {
   }
 }
 
-// VISUAL SHOP SCHEDULE (Will later come from database)
-const SHOP_OPEN_HOUR = 9
-const SHOP_CLOSE_HOUR = 21
 
 export default function BarberDashboard() {
+  const { data: shopSettings } = useShopSettings()
+  const timezone = shopSettings?.timezone ?? DEFAULT_TIMEZONE
+
+  // shop_settings.opening_time / closing_time are Postgres `time` columns > "09:00:00"
+  const openHour = shopSettings ? parseInt(shopSettings.opening_time.split(':')[0], 10) : 9
+  const closeHour = shopSettings ? parseInt(shopSettings.closing_time.split(':')[0], 10) : 21
+
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null)
@@ -191,7 +197,7 @@ export default function BarberDashboard() {
           <View className='flex-row'>
 
             {/* Time Grid (Left Rules) */}
-            <TimeGrid startHour={SHOP_OPEN_HOUR} endHour={SHOP_CLOSE_HOUR} />
+            <TimeGrid startHour={openHour} endHour={closeHour} />
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex-1'>
               <View className='flex-row relative'>
@@ -199,8 +205,8 @@ export default function BarberDashboard() {
                 {/* Background Zebra Lines */}
                 <CalendarGridLines
                   columnsCount={activeBarbers.length}
-                  startHour={SHOP_OPEN_HOUR}
-                  endHour={SHOP_CLOSE_HOUR}
+                  startHour={openHour}
+                  endHour={closeHour}
                 />
 
                 <View className='flex-row z-10'>
@@ -212,6 +218,9 @@ export default function BarberDashboard() {
                         barberName={barber.name}
                         appointments={barberAppointments}
                         date={selectedDate}
+                        startHour={openHour}
+                        endHour={closeHour}
+                        timezone={timezone}
                         onPressAppointment={(apt) => setSelectedAppointment(apt as AppointmentWithRelations)}
                         onPressEmptySlot={(slotStart) => handleEmptySlotPress(barber.id, slotStart)}
                       />
@@ -292,6 +301,7 @@ export default function BarberDashboard() {
         visible={!!manualHold}
         holdId={manualHold?.id ?? null}
         slotStart={manualHold?.slotStart ?? null}
+        timezone={timezone}
         onClose={() => setManualHold(null)}
         onSaved={() => {
           setManualHold(null)

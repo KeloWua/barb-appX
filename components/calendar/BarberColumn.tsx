@@ -7,13 +7,16 @@ interface Props {
     barberName: string
     appointments: AppointmentWithRelations[]
     date: Date
+    startHour: number
+    endHour: number
+    timezone: string
     onPressAppointment: (appointment: AppointmentWithRelations) => void
     onPressEmptySlot: (slotStart: Date) => void
 }
 
-export function BarberColumn({ barberName, appointments, date, onPressAppointment, onPressEmptySlot }: Props) {
-    const height = getDayTotalHeight()
-    const slots = generateDaySlots(date)
+export function BarberColumn({ barberName, appointments, date, startHour, endHour, timezone, onPressAppointment, onPressEmptySlot }: Props) {
+    const height = getDayTotalHeight(startHour, endHour)
+    const slots = generateDaySlots(date, startHour, endHour, timezone)
     const slotHeight = 30 * PX_PER_MINUTE
 
     const isSlotOccupied = (slotStart: Date) => {
@@ -39,7 +42,7 @@ export function BarberColumn({ barberName, appointments, date, onPressAppointmen
                         <TouchableOpacity
                             key={i}
                             onPress={() => onPressEmptySlot(slot)}
-                            style={{ top: calculateTop(slot.toISOString()), height: slotHeight }}
+                            style={{ top: calculateTop(slot.toISOString(), startHour, timezone), height: slotHeight }}
                             className="absolute left-1 right-1 rounded-md active:bg-slate-200"
                         />
                     )
@@ -49,6 +52,8 @@ export function BarberColumn({ barberName, appointments, date, onPressAppointmen
                     <AppointmentBlock
                         key={apt.id}
                         appointment={apt}
+                        startHour={startHour}
+                        timezone={timezone}
                         onPress={() => onPressAppointment(apt)}
                     />
                 ))}

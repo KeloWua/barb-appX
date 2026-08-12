@@ -1,7 +1,9 @@
 import { setHours, setMinutes, setSeconds, setMilliseconds, addMinutes, isBefore, differenceInMinutes, getHours, getMinutes } from 'date-fns'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 export const PX_PER_MINUTE = 1.5 // Visual scale ( 1 hour = 90px )
 export const COLUMN_WIDTH = 180 // Fixed width of each barber
+export const DEFAULT_TIMEZONE = 'Europe/Madrid' // Fallback if shop_settings DB have no rows yet
 
 export type TimeShift = {
     start_time: string; // e.g., "10:00"
@@ -14,8 +16,8 @@ export const getDayTotalMinutes = (startHour: number = 9, endHour: number = 21) 
 export const getDayTotalHeight = (startHour: number = 9, endHour: number = 21) => getDayTotalMinutes(startHour, endHour) * PX_PER_MINUTE
 
 // Converts one hour (ISO string) in 'top' (Y) position relative to the grid start time
-export const calculateTop = (startTime: string, baseStartHour: number = 9): number => {
-    const date = new Date(startTime)
+export const calculateTop = (startTime: string, baseStartHour: number = 9, timezone: string = DEFAULT_TIMEZONE): number => {
+    const date = toZonedTime(new Date(startTime), timezone)
     const hours = getHours(date)
     const minutes = getMinutes(date)
 
@@ -36,10 +38,10 @@ export const calculateHeight = (startTime: string, endTime: string): number => {
 }
 
 // Generates clickable empty slots for the Barber Dashboard grid
-export const generateDaySlots = (date: Date, startHour: number = 9, endHour: number = 21): Date[] => {
+export const generateDaySlots = (date: Date, startHour: number = 9, endHour: number = 21, timezone: string = DEFAULT_TIMEZONE): Date[] => {
     const slots: Date[] = []
-    let current = setMilliseconds(setSeconds(setMinutes(setHours(date, startHour), 0), 0), 0)
-    const end = setMilliseconds(setSeconds(setMinutes(setHours(date, endHour), 0), 0), 0)
+    let current = fromZonedTime(setMilliseconds(setSeconds(setMinutes(setHours(date, startHour), 0), 0), 0), timezone)
+    const end = fromZonedTime(setMilliseconds(setSeconds(setMinutes(setHours(date, endHour), 0), 0), 0), timezone)
 
     while (isBefore(current, end)) {
         slots.push(current)
@@ -61,16 +63,16 @@ const isSlotAvailable = (
     })
 }
 
-// NEW helper: Checks if a slot fits entirely INSIDE any of the barber's shifts
-const isWithinShifts = (slotStart: Date, slotEnd: Date, shifts: TimeShift[], baseDate: Date) => {
+// NEW helper: Checks if a slot fits entirely INSIDE any of the barber's shifts ( NOW RECEIVES timezone)
+const isWithinShifts = (slotStart: Date, slotEnd: Date, shifts: TimeShift[], baseDate: Date, timezone: string) => {
     if (shifts.length === 0) return false;
 
     return shifts.some(shift => {
         const [startHour, startMin] = shift.start_time.split(':').map(Number)
         const [endHour, endMin] = shift.end_time.split(':').map(Number)
 
-        const shiftStart = setMilliseconds(setSeconds(setMinutes(setHours(baseDate, startHour), startMin), 0), 0)
-        const shiftEnd = setMilliseconds(setSeconds(setMinutes(setHours(baseDate, endHour), endMin), 0), 0)
+        const shiftStart = fromZonedTime(setMilliseconds(setSeconds(setMinutes(setHours(baseDate, startHour), startMin), 0), 0), timezone)
+        const shiftEnd = fromZonedTime(setMilliseconds(setSeconds(setMinutes(setHours(baseDate, endHour), endMin), 0), 0), timezone)
 
         // The slot must start at or after the shift starts, AND end at or before the shift ends
         return slotStart >= shiftStart && slotEnd <= shiftEnd
@@ -83,7 +85,8 @@ export const calculateAvailableSlots = (
     serviceDuration: number,
     bookedSlots: { start_time: string; end_time: string }[],
     shifts: TimeShift[],
-    isDayOff: boolean = false
+    isDayOff: boolean = false,
+    timezone: string = DEFAULT_TIMEZONE
 ) => {
     const morningSlots: Date[] = []
     const afternoonSlots: Date[] = []
@@ -96,11 +99,10 @@ export const calculateAvailableSlots = (
     const slotInterval = 30
 
     // Scan the entire 24h day. isWithinShifts will automatically filter out the hours they don't work
-    let currentSlot = setMilliseconds(
+    let currentSlot = fromZonedTime(setMilliseconds(
         setSeconds(setMinutes(setHours(date, 0), 0), 0),
-        0
-    )
-    const endOfDay = setMinutes(setHours(date, 23), 0)
+        0), timezone)
+    const endOfDay = fromZonedTime(setMinutes(setHours(date, 23), 0), timezone)
 
     while (isBefore(currentSlot, endOfDay)) {
         const slotEnd = new Date(
@@ -113,8 +115,9 @@ export const calculateAvailableSlots = (
         // 1. Is in future? 
         // 2. Is inside a working shift? 
         // 3. Is free from appointments?
-        if (isFuture && isWithinShifts(currentSlot, slotEnd, shifts, date) && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
-            if (currentSlot.getHours() < 16) {
+        if (isFuture && isWithinShifts(currentSlot, slotEnd, shifts, date, timezone) && isSlotAvailable(currentSlot, slotEnd, bookedSlots)) {
+            const localHour = getHours(toZonedTime(currentSlot, timezone))
+            if (localHour < 16) {
                 morningSlots.push(currentSlot)
             } else {
                 afternoonSlots.push(currentSlot)

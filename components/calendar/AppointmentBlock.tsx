@@ -2,14 +2,18 @@ import { Text, TouchableOpacity } from 'react-native'
 import { calculateTop, calculateHeight } from '../../lib/calendarUtils'
 import { getStatusTheme } from '../../app/(barber)/index'
 import { AppointmentWithRelations } from '../../types/app';
+import { formatInTimeZone } from 'date-fns-tz'
+
 
 interface Props {
     appointment: AppointmentWithRelations;
+    startHour: number;
+    timezone: string;
     onPress?: () => void;
 }
 
-export function AppointmentBlock({ appointment, onPress }: Props) {
-    const top = calculateTop(appointment.start_time);
+export function AppointmentBlock({ appointment, startHour, timezone, onPress }: Props) {
+    const top = calculateTop(appointment.start_time, startHour, timezone);
     const height = calculateHeight(appointment.start_time, appointment.end_time);
 
     const statusTheme = getStatusTheme(appointment.status);
@@ -30,7 +34,7 @@ export function AppointmentBlock({ appointment, onPress }: Props) {
                     className={`text-[10px] font-bold truncate ${statusTheme.text}`}
                     numberOfLines={1} // Forces React Native to truncate text with "..." instead of wrapping to a new line
                 >
-                    {appointment.client?.full_name || 'Cliente'} • {new Date(appointment.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {appointment.client?.full_name || 'Cliente'} • {formatInTimeZone(appointment.start_time, timezone, 'HH:mm')}
                 </Text>
             ) : (
                 // Normal mode (45+ mins): 3 lines complete design
@@ -43,7 +47,7 @@ export function AppointmentBlock({ appointment, onPress }: Props) {
                     </Text>
 
                     <Text className={`text-[10px] font-semibold mt-auto ${statusTheme.text}`} numberOfLines={1}>
-                        {new Date(appointment.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatInTimeZone(appointment.start_time, timezone, 'HH:mm')}
                     </Text>
                 </>
             )}
