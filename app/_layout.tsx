@@ -1,11 +1,11 @@
+// FILE: app/_layout.tsx
 import { useEffect } from "react"
 import { Slot, useRouter, useSegments } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuth } from "../hooks/useAuth"
 import { View, ActivityIndicator } from 'react-native'
 /*@ts-ignore-next-line*/
-import '../global.css' // MANDATORY INYECTION FOR NATIVEWIND 4
-
+import '../global.css'
 
 const queryClient = new QueryClient()
 
@@ -19,15 +19,16 @@ function AuthGuard() {
 
         const currentGroup = segments[0]
         const inAuthGroup = currentGroup === '(auth)'
+        const isSharedAuthRoute = currentGroup === 'profile'
 
         if (!isAuthenticated && !inAuthGroup) {
             router.replace('/(auth)/login')
         } else if (isAuthenticated && role) {
             const expectedGroup = `(${role})`
 
-            // Enforce strict role routing (prevents accessing other roles via web URL)
+            // Permitimos el acceso a los grupos del rol y a rutas compartidas autenticadas como /profile
             /*@ts-ignore-next-line*/
-            if (inAuthGroup || segments.length === 0 || currentGroup !== expectedGroup) {
+            if (inAuthGroup || segments.length === 0 || (currentGroup !== expectedGroup && !isSharedAuthRoute)) {
                 router.replace(`/${expectedGroup}`)
             }
         }
@@ -44,7 +45,9 @@ function AuthGuard() {
 }
 
 export default function RootLayout() {
-    return <QueryClientProvider client={queryClient}>
-        <AuthGuard />
-    </QueryClientProvider>
+    return (
+        <QueryClientProvider client={queryClient}>
+            <AuthGuard />
+        </QueryClientProvider>
+    )
 }

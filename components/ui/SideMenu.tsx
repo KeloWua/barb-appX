@@ -1,3 +1,4 @@
+// FILE: components/ui/SideMenu.tsx
 import { useRouter } from 'expo-router'
 import { View, Text, TouchableOpacity, Modal, Pressable } from 'react-native'
 import { useAuth } from '../../hooks/useAuth'
@@ -23,13 +24,14 @@ export default function SideMenu() {
     }
 
     const homeRoute = role === 'admin' ? '/(admin)' : role === 'barber' ? '/(barber)' : '/(client)'
-    const profileRoute = role === 'admin' ? '/(admin)/profile' : role === 'barber' ? '/(barber)/profile' : '/(client)/profile'
+    // Ruta consolidada unificada para todos los roles
+    const profileRoute = '/profile'
 
     return (
         <Modal visible={isMenuOpen} transparent animationType='fade' onRequestClose={closeMenu}>
             {/* Semi-transparent overlay */}
             <Pressable className='flex-1 bg-black/50' onPress={closeMenu}>
-                {/* Lateral Panel - pressable child avoids closing when touching inside */}
+                {/* Lateral Panel */}
                 <Pressable className='absolute left-0 top-0 bottom-0 w-72 bg-white pt-16 px-6 shadow-2xl'>
                     {/* Menu Header */}
                     <View className='mb-8 pb-6 border-b border-slate-200'>
@@ -41,6 +43,7 @@ export default function SideMenu() {
                         <Text className='text-lg font-bold text-slate-900'>{profile?.full_name ?? 'Usuario'}</Text>
                         <Text className='text-sm text-slate-500'>{profile?.email ?? ''}</Text>
                     </View>
+
                     {/* Options */}
                     <TouchableOpacity
                         className='flex-row items-center py-4 border-b border-slate-100'
@@ -48,7 +51,6 @@ export default function SideMenu() {
                     >
                         <Text className='text-base text-slate-700 font-medium'>🏠 Inicio</Text>
                     </TouchableOpacity>
-
 
                     <TouchableOpacity
                         className='flex-row items-center py-4 border-b border-slate-100'
@@ -66,7 +68,7 @@ export default function SideMenu() {
                         </TouchableOpacity>
                     )}
 
-                    {/* Log Out at the bottom */}
+                    {/* Log Out */}
                     <View className='absolute bottom-12 left-6 right-6'>
                         <TouchableOpacity
                             className='bg-red-50 border border-red-200 rounded-xl py-4 items-center'
@@ -80,4 +82,3 @@ export default function SideMenu() {
         </Modal>
     )
 }
-

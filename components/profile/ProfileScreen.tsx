@@ -5,15 +5,15 @@ import { profileSchema, ProfileFormData } from '../../types/app'
 import { useProfile } from '../../hooks/useProfile'
 import ProfileHeader from './ProfileHeader'
 import ProfileBaseFields from './ProfileBaseFields'
-
-
+import SideMenu from '../ui/SideMenu'
+import MenuButton from '../ui/MenuButton'
 
 interface ProfileScreenProps {
     title?: string
     extraFields?: React.ReactNode
 }
 
-export default function ProfileSCreen({ title = 'My Profile', extraFields }: ProfileScreenProps) {
+export default function ProfileScreen({ title = 'Mi Perfil', extraFields }: ProfileScreenProps) {
     const { profile, isLoading, saveProfile, isPending } = useProfile()
     const { control, handleSubmit, formState: { errors } } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
@@ -34,9 +34,12 @@ export default function ProfileSCreen({ title = 'My Profile', extraFields }: Pro
 
     return (
         <View className='flex-1 bg-slate-50'>
+            {/* Modal side menu */}
+            <SideMenu />
 
-            {/* Header */}
-            <View className='flex-row justify-between items-center px-4 pt-2 pb-4 border-b border-slate-200'>
+            {/* Header with hamburger menu button and top padding for device notch */}
+            <View className='flex-row justify-between items-center px-4 pt-12 pb-4 bg-white border-b border-slate-200'>
+                <MenuButton />
                 <Text className='text-lg font-bold text-slate-900'>{title}</Text>
                 <View className='w-8' />
             </View>
@@ -45,23 +48,20 @@ export default function ProfileSCreen({ title = 'My Profile', extraFields }: Pro
                 <ProfileHeader profile={profile} />
                 <ProfileBaseFields control={control} errors={errors} profile={profile} />
 
-                {/* Extra fields per role — injected from outside */}
+                {/* Extra fields per role — injected from outside if needed */}
                 {extraFields}
 
-                {/* Save button */}
+                {/* Save changes button */}
                 <TouchableOpacity
                     className={`bg-blue-600 rounded-xl p-4 items-center mt-4 mb-8 ${isPending ? 'opacity-50' : ''}`}
                     onPress={handleSubmit((data) => saveProfile(data))}
                     disabled={isPending}
                 >
                     <Text className='text-white font-semibold text-base'>
-                        {isPending ? 'Saving...' : 'Save changes'}
+                        {isPending ? 'Guardando...' : 'Guardar cambios'}
                     </Text>
                 </TouchableOpacity>
             </ScrollView>
         </View>
     )
-
-
-
 }
