@@ -23,9 +23,9 @@ export function useCustomerSearch() {
     })
 
     const createWalkinClient = useMutation({
-        mutationFn: async ({ full_name, phone }: { full_name: string; phone?: string }) => {
+        mutationFn: async () => {
             const { data, error } = await supabase.functions.invoke('create-walkin-client', {
-                body: { full_name, phone },
+                body: {},
             })
             if (error) throw error
             if (data?.error) throw new Error(data.error)

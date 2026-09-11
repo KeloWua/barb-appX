@@ -35,16 +35,16 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
 
     const handleClose = async () => {
         if (holdId) {
-            try { await releaseAppointmentHold(holdId) } catch {}
+            try { await releaseAppointmentHold(holdId) } catch { }
         }
         reset()
         onClose()
     }
 
     const handleWalkinQuick = async () => {
-        const name = `Walk-in ${format(new Date(), 'HH:mm')}`
-        const client = await createWalkinClient.mutateAsync({ full_name: name })
-        setSelectedClient({ id: client.id, full_name: client.full_name })
+        const client = await createWalkinClient.mutateAsync()
+        const label = `Walk-in ${format(new Date(), 'HH:mm')}`
+        setSelectedClient({ id: client.id, full_name: label })
     }
 
     const handleSave = async () => {
@@ -91,9 +91,8 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
                             <TouchableOpacity
                                 key={s.id}
                                 onPress={() => setSelectedService(s)}
-                                className={`px-3 py-2 rounded-full border ${
-                                    selectedService?.id === s.id ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
-                                }`}
+                                className={`px-3 py-2 rounded-full border ${selectedService?.id === s.id ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
+                                    }`}
                             >
                                 <Text className={selectedService?.id === s.id ? 'text-white' : 'text-slate-700'}>
                                     {s.name_es} ({s.duration_minutes}min)
@@ -153,9 +152,8 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
                     <TouchableOpacity
                         onPress={handleSave}
                         disabled={!selectedService || !selectedClient || isSaving}
-                        className={`rounded-2xl py-4 mb-3 items-center ${
-                            selectedService && selectedClient ? 'bg-slate-900' : 'bg-slate-300'
-                        }`}
+                        className={`rounded-2xl py-4 mb-3 items-center ${selectedService && selectedClient ? 'bg-slate-900' : 'bg-slate-300'
+                            }`}
                     >
                         <Text className="text-white font-bold">
                             {isSaving ? 'Guardando...' : 'Guardar cita'}
