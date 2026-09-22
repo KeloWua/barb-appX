@@ -36,6 +36,9 @@ yarn-error.*
 # env file
 .env
 
+# supabase temp
+/supabase/.temp/
+
 # history
 .history/
 .vscode/

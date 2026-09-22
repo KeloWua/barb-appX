@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Platform } from 'react-native'
-import { Calendar, LocaleConfig } from 'react-native-calendars'
+import { Calendar, DateData, LocaleConfig } from 'react-native-calendars'
 import { useRouter } from 'expo-router'
 import {
     format, addDays, isSameDay, startOfDay, startOfWeek,
@@ -49,6 +49,7 @@ export default function SelectDateTimeScreen() {
     const queryClient = useQueryClient()
 
     const [isDatePickerVisible, setIsDatePickerVisible] = useState(false)
+    const [isHoldingSlot, setIsHoldingSlot] = useState(false)
 
     const { data: shopSettings } = useShopSettings()
     const timezone = shopSettings?.timezone ?? DEFAULT_TIMEZONE
@@ -143,8 +144,9 @@ export default function SelectDateTimeScreen() {
 
     // Handle slot selection
     const handleSelectSlot = async (slotStart: Date) => {
-        if (!profile?.id || !selectedService || !selectedBarber) return
+        if (!profile?.id || !selectedService || !selectedBarber || isHoldingSlot) return // Safety check
 
+        setIsHoldingSlot(true)
         try {
             if (holdId) await releaseHold(holdId)
 
@@ -159,8 +161,9 @@ export default function SelectDateTimeScreen() {
             setHold(newHoldId)
             setSlot(slotStart.toISOString(), slotEnd.toISOString())
             router.push('/book/confirm')
-        } catch (error: any) {
-            const msg = error.message === 'SLOT_TAKEN'
+        } catch (error: unknown) {
+            setIsHoldingSlot(false) // Frees up blocked state if hold fails
+            const msg = error instanceof Error && error.message === 'SLOT_TAKEN'
                 ? 'Alguien acaba de reservar esta hora. Elige otra.'
                 : 'No se pudo completar la reserva. Inténtalo de nuevo.'
             Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
@@ -271,7 +274,7 @@ export default function SelectDateTimeScreen() {
                             minDate={new Date().toISOString().split('T')[0]}
                             // Actual selected date
                             current={activeDate.toISOString().split('T')[0]}
-                            onDayPress={(day: any) => {
+                            onDayPress={(day: DateData) => {
                                 setDate(new Date(day.timestamp).toISOString())
                                 setIsDatePickerVisible(false)
                             }}

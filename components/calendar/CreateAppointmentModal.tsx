@@ -7,6 +7,7 @@ import { useServices } from '../../hooks/useServices'
 import { useCustomerSearch } from '../../hooks/useCustomerSearch'
 import { finalizeManualAppointment, releaseAppointmentHold } from '../../lib/repositories/appointmentRepository'
 import type { Service } from '../../types/database'
+import { PostgrestError } from '@supabase/supabase-js'
 
 interface Props {
     visible: boolean
@@ -35,16 +36,16 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
 
     const handleClose = async () => {
         if (holdId) {
-            try { await releaseAppointmentHold(holdId) } catch {}
+            try { await releaseAppointmentHold(holdId) } catch { }
         }
         reset()
         onClose()
     }
 
     const handleWalkinQuick = async () => {
-        const name = `Walk-in ${format(new Date(), 'HH:mm')}`
-        const client = await createWalkinClient.mutateAsync({ full_name: name })
-        setSelectedClient({ id: client.id, full_name: client.full_name })
+        const client = await createWalkinClient.mutateAsync()
+        const label = `Walk-in ${format(new Date(), 'HH:mm')}`
+        setSelectedClient({ id: client.id, full_name: label })
     }
 
     const handleSave = async () => {
@@ -64,7 +65,7 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
         setIsSaving(false)
 
         if (error) {
-            const msg = (error as any).code === '23P01'
+            const msg = (error as PostgrestError).code === '23P01'
                 ? 'Ese horario ya no está libre.'
                 : 'No se pudo guardar la cita.'
             Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
@@ -91,9 +92,8 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
                             <TouchableOpacity
                                 key={s.id}
                                 onPress={() => setSelectedService(s)}
-                                className={`px-3 py-2 rounded-full border ${
-                                    selectedService?.id === s.id ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
-                                }`}
+                                className={`px-3 py-2 rounded-full border ${selectedService?.id === s.id ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
+                                    }`}
                             >
                                 <Text className={selectedService?.id === s.id ? 'text-white' : 'text-slate-700'}>
                                     {s.name_es} ({s.duration_minutes}min)
@@ -120,7 +120,7 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
                                 className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2"
                             />
                             {isLoading && <ActivityIndicator className="mb-2" />}
-                            {results.map((c: any) => (
+                            {results.map((c) => (
                                 <TouchableOpacity
                                     key={c.id}
                                     onPress={() => setSelectedClient(c)}
@@ -153,9 +153,8 @@ export function CreateAppointmentModal({ visible, holdId, slotStart, timezone, o
                     <TouchableOpacity
                         onPress={handleSave}
                         disabled={!selectedService || !selectedClient || isSaving}
-                        className={`rounded-2xl py-4 mb-3 items-center ${
-                            selectedService && selectedClient ? 'bg-slate-900' : 'bg-slate-300'
-                        }`}
+                        className={`rounded-2xl py-4 mb-3 items-center ${selectedService && selectedClient ? 'bg-slate-900' : 'bg-slate-300'
+                            }`}
                     >
                         <Text className="text-white font-bold">
                             {isSaving ? 'Guardando...' : 'Guardar cita'}

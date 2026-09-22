@@ -21,6 +21,7 @@ import { CreateAppointmentModal } from '../../components/calendar/CreateAppointm
 import type { AppointmentWithRelations } from '../../types/app'
 import type { appointment_status } from '../../types/database'
 import { DEFAULT_TIMEZONE } from '../../lib/calendarUtils'
+import { PostgrestError } from '@supabase/supabase-js'
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -79,7 +80,7 @@ export default function BarberDashboard() {
 
     if (error || !data) {
       console.error(error)
-      const msg = (error as any)?.code === '23P01' ? 'Ese hueco ya está ocupado.' : 'No se pudo crear la cita.'
+      const msg = (error as PostgrestError)?.code === '23P01' ? 'Ese hueco ya está ocupado.' : 'No se pudo crear la cita.'
       Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg)
       return
     }

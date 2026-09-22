@@ -4,6 +4,7 @@ import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-f
 import { getAppointmentsByRange, updateAppointmentStatus, holdAppointmentSlot, releaseAppointmentHold } from '../lib/repositories/appointmentRepository'
 import { supabase } from '../lib/supabase' // Needed to listen to WebSockets
 import type { appointment_status } from '../types/database'
+import { PostgrestError } from '@supabase/supabase-js'
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -105,10 +106,11 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
 
         if (res.error) {
             // 23P01 = exclusion_violation -> someone just booked that slot right before you
-            if ((res.error as any).code === '23P01') {
+            const pgError = res.error as PostgrestError
+            if (pgError.code === '23P01') {
                 throw new Error('SLOT_TAKEN')
             }
-            throw res.error
+            throw pgError
         }
         return res.data?.id // Returns the ID so we can save it in Zustand
     }
@@ -127,4 +129,4 @@ export const useAppointments = (selectedDate: Date, viewMode: ViewMode, barberId
         holdSlot,
         releaseHold
     }
-} 
+}

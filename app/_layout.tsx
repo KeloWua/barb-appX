@@ -1,6 +1,5 @@
-// FILE: app/_layout.tsx
-import { useEffect } from "react"
-import { Slot, useRouter, useSegments } from 'expo-router'
+import { useEffect, useState } from "react"
+import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuth } from "../hooks/useAuth"
 import { View, ActivityIndicator } from 'react-native'
@@ -13,9 +12,10 @@ function AuthGuard() {
     const { isInitialized, isAuthenticated, role } = useAuth()
     const segments = useSegments()
     const router = useRouter()
+    const navigationState = useRootNavigationState() // Check if router loaded
 
     useEffect(() => {
-        if (!isInitialized) return
+        if (!isInitialized || !navigationState?.key) return // IMPORTANT: Wait for router
 
         const currentGroup = segments[0]
         const inAuthGroup = currentGroup === '(auth)'
@@ -26,13 +26,14 @@ function AuthGuard() {
         } else if (isAuthenticated && role) {
             const expectedGroup = `(${role})`
 
-            // Permitimos el acceso a los grupos del rol y a rutas compartidas autenticadas como /profile
+            
+            // We allow access to role groups and shared authenticated routes like /profile
             /*@ts-ignore-next-line*/
             if (inAuthGroup || segments.length === 0 || (currentGroup !== expectedGroup && !isSharedAuthRoute)) {
                 router.replace(`/${expectedGroup}`)
             }
         }
-    }, [isInitialized, isAuthenticated, role, segments])
+    }, [isInitialized, isAuthenticated, role, segments, navigationState?.key])
 
     if (!isInitialized) {
         return (
