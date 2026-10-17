@@ -133,9 +133,15 @@ export const cancelAppointment = async (id: string) => {
     return { data, error }
 }
 
+// Minutes the client has to review and confirm before the hold expires.
+// 1 minute was too short to read the summary and confirm in time; 5 minutes
+// gives room to finish the booking without blocking the slot for long if the
+// client abandons it.
+const CLIENT_HOLD_MINUTES = 5
+
 export const holdAppointmentSlot = async (payload: HoldPayload) => {
-    // Expires exactly 1 minutes from now
-    const expiresAt = new Date(new Date().getTime() + 1 * 60000).toISOString()
+    // Expires CLIENT_HOLD_MINUTES from now
+    const expiresAt = new Date(new Date().getTime() + CLIENT_HOLD_MINUTES * 60000).toISOString()
 
     const { data, error } = await supabase
         .from('appointments')
