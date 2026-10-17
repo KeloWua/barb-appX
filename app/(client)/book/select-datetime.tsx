@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Platform } from 'react-native'
 import { Calendar, DateData, LocaleConfig } from 'react-native-calendars'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import {
     format, addDays, isSameDay, startOfDay, startOfWeek,
     setHours,
@@ -50,6 +50,15 @@ export default function SelectDateTimeScreen() {
 
     const [isDatePickerVisible, setIsDatePickerVisible] = useState(false)
     const [isHoldingSlot, setIsHoldingSlot] = useState(false)
+
+    // Reset the holding guard when this screen gains focus again (e.g. the user
+    // goes back from the confirmation screen). Without this, isHoldingSlot stays
+    // true after a successful hold and the slot selector stays frozen.
+    useFocusEffect(
+        useCallback(() => {
+            setIsHoldingSlot(false)
+        }, [])
+    )
 
     const { data: shopSettings } = useShopSettings()
     const timezone = shopSettings?.timezone ?? DEFAULT_TIMEZONE
