@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale'
 
 import { useBookingStore } from '../../../stores/bookingStore'
 import { useHoldDetails } from '../../../hooks/useHoldDetails'
-import { updateAppointmentStatus, releaseAppointmentHold } from '../../../lib/repositories/appointmentRepository'
+import { updateAppointmentStatus, releaseAppointmentHold, HoldGoneError } from '../../../lib/repositories/appointmentRepository'
 import { Countdown } from '../../../components/ui/Countdown'
 
 export default function ConfirmScreen() {
@@ -40,8 +40,14 @@ export default function ConfirmScreen() {
                 // We send appointment ID to fetch it updated on success screen in case anything changes on DB
                 params: { id: holdId },
             })
-        } catch {
-            Alert.alert('Error', 'No se pudo confirmar la cita. Inténtalo de nuevo.')
+        } catch (error) {
+            if (error instanceof HoldGoneError) {
+                // The hold is already gone (the cron deleted it after expiry):
+                // show the expired state instead of a retry that can never work.
+                setIsExpired(true)
+            } else {
+                Alert.alert('Error', 'No se pudo confirmar la cita. Inténtalo de nuevo.')
+            }
         } finally {
             setIsConfirming(false)
         }

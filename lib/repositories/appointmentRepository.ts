@@ -112,13 +112,25 @@ export const getAppointmentById = async (id: string) => {
     }
 }
 
+// Returned when the appointment row no longer exists (e.g. the cron already
+// deleted an expired hold). Lets callers tell "hold is gone" apart from a
+// real failure instead of showing a retry message that can never succeed.
+export class HoldGoneError extends Error {
+    constructor() {
+        super('HOLD_GONE')
+        this.name = 'HoldGoneError'
+    }
+}
+
 export const updateAppointmentStatus = async (id: string, status: appointment_status) => {
     const { data, error } = await supabase.from('appointments')
         .update({ status })
         .eq('id', id)
-        .select().single()
+        .select().maybeSingle()
 
-    return { data, error }
+    if (error) return { data, error }
+    if (!data) return { data: null, error: new HoldGoneError() }
+    return { data, error: null }
 }
 
 export const cancelAppointment = async (id: string) => {
