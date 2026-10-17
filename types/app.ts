@@ -14,6 +14,15 @@ export const loginSchema = z.object({
 })
 export type LoginFormData = z.infer<typeof loginSchema>
 
+export const registerSchema = z.object({
+  full_name: z.string().min(2, 'Mínimo 2 caracteres'),
+  email: z.string().email('Email no válido'),
+  phone: z.string()
+    .regex(/^\+?[0-9\s-]{7,15}$/, 'Número de teléfono no válido'),
+  password: z.string().min(6, 'Mínimo 6 caracteres'),
+})
+export type RegisterFormData = z.infer<typeof registerSchema>
+
 export const profileSchema = z.object({
   full_name: z.string().min(2, 'Minimum 2 characters'),
   phone: z.string()

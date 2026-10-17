@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Link } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { loginSchema, LoginFormData } from '../../types/app'
 
@@ -43,6 +44,7 @@ export default function LoginScreen() {
             <TouchableOpacity className={`bg-blue-600 rounded-lg p-4 items-center ${isLoading ? 'opacity-50' : ''}`} onPress={handleSubmit(onSubmit)} disabled={isLoading}>
                 <Text className="text-white font-semibold text-lg">{isLoading ? 'Cargando...' : 'Entrar'}</Text>
             </TouchableOpacity>
+            <Link href="/(auth)/register" className="mt-4 text-center text-blue-600">¿No tienes cuenta? Crear cuenta</Link>
         </View>
     );
 }
