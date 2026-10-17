@@ -133,11 +133,9 @@ export const cancelAppointment = async (id: string) => {
     return { data, error }
 }
 
-// Minutes the client has to review and confirm before the hold expires.
-// 1 minute was too short to read the summary and confirm in time; 5 minutes
-// gives room to finish the booking without blocking the slot for long if the
-// client abandons it.
-const CLIENT_HOLD_MINUTES = 5
+// Minutes the client has to review and decide before the hold expires.
+// 2 minutes gives time to check the summary without holding the slot too long.
+const CLIENT_HOLD_MINUTES = 2
 
 export const holdAppointmentSlot = async (payload: HoldPayload) => {
     // Expires CLIENT_HOLD_MINUTES from now
