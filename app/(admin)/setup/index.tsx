@@ -28,7 +28,8 @@ export default function AdminSetupScreen() {
     const queryClient = useQueryClient()
     const { signOut } = useAuth()
     const { data: status, isLoading } = useSetupStatus(true)
-    const { data: services = [] } = useAdminServices()
+    const { data: allServices = [] } = useAdminServices()
+    const services = allServices.filter((s) => s.is_active)
     const saveService = useSaveService()
 
     const [busy, setBusy] = useState(false)
