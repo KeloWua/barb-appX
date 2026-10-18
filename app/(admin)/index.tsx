@@ -26,6 +26,13 @@ export default function AdminDashboard() {
                     <Text className='font-bold text-slate-900 text-base'>💈 Gestionar barberos</Text>
                     <Text className='text-slate-400'>›</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => router.push('/(admin)/services')}
+                    className='mt-3 bg-white border border-slate-200 rounded-xl px-4 py-4 flex-row justify-between items-center'
+                >
+                    <Text className='font-bold text-slate-900 text-base'>✂️ Gestionar servicios</Text>
+                    <Text className='text-slate-400'>›</Text>
+                </TouchableOpacity>
             </View>
         </View>
     )

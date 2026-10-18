@@ -68,6 +68,23 @@ export default function SideMenu() {
                         </TouchableOpacity>
                     )}
 
+                    {role === 'admin' && (
+                        <>
+                            <TouchableOpacity
+                                onPress={() => handleNavigate('/(admin)/barbers')}
+                                className='flex-row items-center py-4 border-b border-slate-100'
+                            >
+                                <Text className='text-base text-slate-700 font-medium'>💈 Barberos</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => handleNavigate('/(admin)/services')}
+                                className='flex-row items-center py-4 border-b border-slate-100'
+                            >
+                                <Text className='text-base text-slate-700 font-medium'>✂️ Servicios</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+
                     {/* Log Out */}
                     <View className='absolute bottom-12 left-6 right-6'>
                         <TouchableOpacity
