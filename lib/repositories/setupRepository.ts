@@ -1,8 +1,7 @@
 import { supabase } from '../supabase'
 
-// TODO(schema): confirm real column names of public.shop_settings.
 export const SHOP_COLUMNS = {
-    name: 'shop_name',
+    name: 'business_name',
     phone: 'phone',
     email: 'email',
     address: 'address',
@@ -22,7 +21,7 @@ export async function saveBusinessInfo(info: BusinessInfo) {
 
     const { error } = existing
         ? await supabase.from('shop_settings').update(values).eq('id', existing.id)
-        : await supabase.from('shop_settings').insert(values)
+        : await supabase.from('shop_settings').insert({ opening_time: '09:00:00', closing_time: '21:00:00', timezone: 'Europe/Madrid', ...values })
     if (error) throw new Error(error.message)
 }
 
