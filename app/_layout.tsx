@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuth } from "../hooks/useAuth"
+import { useSetupStatus } from "../hooks/useSetupStatus"
 import { View, ActivityIndicator } from 'react-native'
 /*@ts-ignore-next-line*/
 import '../global.css'
@@ -13,6 +14,8 @@ function AuthGuard() {
     const segments = useSegments()
     const router = useRouter()
     const navigationState = useRootNavigationState() // Check if router loaded
+    // First-run setup: admins must finish it before using the app
+    const { data: setup, isLoading: setupLoading } = useSetupStatus(isAuthenticated && role === 'admin')
 
     useEffect(() => {
         if (!isInitialized || !navigationState?.key) return // IMPORTANT: Wait for router
@@ -26,6 +29,15 @@ function AuthGuard() {
         } else if (isAuthenticated && role) {
             const expectedGroup = `(${role})`
 
+            if (role === 'admin') {
+                if (setupLoading) return
+                const inSetup = currentGroup === '(admin)' && (segments as string[])[1] === 'setup'
+                if (setup && !setup.complete && !inSetup) {
+                    router.replace('/(admin)/setup')
+                    return
+                }
+            }
+
             
             // We allow access to role groups and shared authenticated routes like /profile
             /*@ts-ignore-next-line*/
@@ -33,7 +45,7 @@ function AuthGuard() {
                 router.replace(`/${expectedGroup}`)
             }
         }
-    }, [isInitialized, isAuthenticated, role, segments, navigationState?.key])
+    }, [isInitialized, isAuthenticated, role, segments, navigationState?.key, setup, setupLoading])
 
     if (!isInitialized) {
         return (
