@@ -4,7 +4,7 @@ import { SHOP_COLUMNS } from '../lib/repositories/setupRepository'
 
 export type SetupStatus = { businessDone: boolean; barberDone: boolean; serviceDone: boolean; complete: boolean }
 
-// Setup is complete when business info is filled, there is at least one barber and one active service.
+// Setup is complete when business info is filled, there is at least one bookable barber (linked to a user) and one active service.
 export function useSetupStatus(enabled: boolean) {
     return useQuery({
         queryKey: ['setup-status'],
@@ -12,7 +12,7 @@ export function useSetupStatus(enabled: boolean) {
         queryFn: async (): Promise<SetupStatus> => {
             const [shop, barbers, services] = await Promise.all([
                 supabase.from('shop_settings').select('*').maybeSingle(),
-                supabase.from('barbers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+                supabase.from('barbers').select('id', { count: 'exact', head: true }).eq('is_active', true).not('profile_id', 'is', null),
                 supabase.from('services').select('id', { count: 'exact', head: true }).eq('is_active', true),
             ])
             if (shop.error) throw new Error(shop.error.message)

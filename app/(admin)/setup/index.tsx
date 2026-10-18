@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { useSetupStatus } from '../../../hooks/useSetupStatus'
 import { useAdminServices, useSaveService } from '../../../hooks/useAdminServices'
-import { saveBusinessInfo, createBarber } from '../../../lib/repositories/setupRepository'
+import { saveBusinessInfo, createOwnerBarber } from '../../../lib/repositories/setupRepository'
 import { useAuth } from '../../../hooks/useAuth'
 
 const BARBER_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2']
@@ -26,7 +26,7 @@ const inputClass = 'border border-slate-300 rounded-xl px-4 py-3 mb-3 text-slate
 export default function AdminSetupScreen() {
     const router = useRouter()
     const queryClient = useQueryClient()
-    const { signOut } = useAuth()
+    const { signOut, profile } = useAuth()
     const { data: status, isLoading } = useSetupStatus(true)
     const { data: allServices = [] } = useAdminServices()
     const services = allServices.filter((s) => s.is_active)
@@ -34,7 +34,7 @@ export default function AdminSetupScreen() {
 
     const [busy, setBusy] = useState(false)
     const [business, setBusiness] = useState({ name: '', phone: '', email: '', address: '' })
-    const [barberName, setBarberName] = useState('')
+    const [barberName, setBarberName] = useState(profile?.full_name ?? '')
     const [service, setService] = useState({ name_es: '', duration: '30', price: '' })
 
     if (isLoading || !status) {
@@ -78,7 +78,8 @@ export default function AdminSetupScreen() {
         if (!name) return Alert.alert('Falta el nombre', 'Escribe el nombre del barbero.')
         setBusy(true)
         try {
-            await createBarber(name, BARBER_COLORS[0])
+            if (!profile?.id) throw new Error('No se encontró tu perfil. Cierra sesión y vuelve a entrar.')
+            await createOwnerBarber(profile.id, name, BARBER_COLORS[0])
             await queryClient.invalidateQueries({ queryKey: ['active-barbers'] })
             await refresh()
         } catch (e) {
@@ -112,7 +113,7 @@ export default function AdminSetupScreen() {
         }
     }
 
-    const titles = ['', 'Datos del negocio', 'Tu primer barbero', 'Tu primer servicio', '¡Todo listo!']
+    const titles = ['', 'Datos del negocio', 'Tu ficha de barbero', 'Tu primer servicio', '¡Todo listo!']
 
     return (
         <KeyboardAvoidingView className='flex-1 bg-slate-50' behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -157,7 +158,7 @@ export default function AdminSetupScreen() {
                 {step === 2 && (
                     <>
                         <Text className='text-slate-500 mb-4'>
-                            Añade al primer barbero. Después podrás gestionar más desde "Gestionar barberos".
+                            Te añadimos como barbero para que los clientes puedan reservar contigo desde ya (horario de 09:00 a 21:00 todos los días, editable después). Puedes cambiar el nombre.
                         </Text>
                         <Text className='text-sm font-medium text-slate-700 mb-1'>Nombre del barbero</Text>
                         <TextInput className={inputClass} value={barberName} placeholder='Nombre'
